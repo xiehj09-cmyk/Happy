@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}任务清单 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tasks.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content" id="tasks-root"
+        data-role="{{ 'family' if is_family else 'elder' }}"
+        data-care-label="{{ care_label }}">
+
+    <section class="page-hero compact">
+      <div>
+        <p class="welcome-kicker">任务清单 · {{ '家属看板' if is_family else '今天要做的事' }}</p>
+        <h1>{% if is_family %}「{{ care_label }}」今日任务{% else %}一步一步来{% endif %}</h1>
+        <p class="welcome-desc">
+          {% if is_family %}
+          创建可拆分的多步任务；查看今天做到哪一步、整体进度与本周完成情况。老人端只显示当前一步，进度两边同步。
+          {% else %}
+          一次只做当前这一步。可以「先不做了」，稍后再继续；关掉页面也不会丢进度。
+          {% endif %}
+        </p>
+      </div>
+      <aside class="hero-stats">
+        <article class="stat-card">
+          <span class="stat-label">今日任务</span>
+          <strong class="stat-value">{{ board.total }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">已完成</span>
+          <strong class="stat-value stat-ok">{{ board.completed_count }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">进行中</span>
+          <strong class="stat-value">{{ board.in_progress_count }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">今日进度</span>
+          <strong class="stat-value">{{ board.overall_percent }}%</strong>
+        </article>
+      </aside>
+    </section>
+
+    {% if is_family %}
+    {# ========== 家属看板 ========== #}
+    <nav class="med-anchors" aria-label="任务分区">
+      <a href="#today-board">今日看板</a>
+      <a href="#week-board">本周概况</a>
+      <a href="#create-task">创建任务</a>
+      <a href="#manage-tasks">管理任务</a>
+    </nav>
+
+    <section class="panel" id="today-board">
+      <header class="panel-header compact">
+        <div>
+          <h2>今日看板</h2>
+          <p>每件事当前步骤与完成进度（与老人端同一份数据）。</p>
+        </div>
+      </header>
+
+      {% if board.tasks %}
+      <ul class="task-board-list">
+        {% for run in board.tasks %}
+        <li class="task-board-card" data-task-id="{{ run.task_id }}">
+          <div class="task-board-head">
+            <div>
+              {% if run.schedule_time %}<time>{{ run.schedule_time }}</time>{% endif %}
+              <strong>{{ run.title }}</strong>
+              <span class="task-status-pill status-{{ run.status }}">{{ run.status_label }}</span>
+            </div>
+            <div class="task-progress-meta">
+              {{ run.done_count }}/{{ run.total_steps }} 步 · {{ run.progress_percent }}%
+            </div>
+          </div>
+
+          <div class="task-progress-bar" aria-hidden="true">
+            <span style="width: {{ run.progress_percent }}%"></span>
+          </div>
+
+          {% if run.current_step and run.status != 'completed' %}
+          <p class="task-current-hint">当前第 {{ run.current_step.index + 1 }} 步：{{ run.current_step.content }}</p>
+          {% elif run.status == 'completed' %}
+          <p class="task-current-hint">今日已全部完成</p>
+          {% else %}
+          <p class="task-current-hint">尚未开始</p>
+          {% endif %}
+
+          <ol class="task-step-list">
+            {% for step in run.steps %}
+            <li class="task-step-item step-{{ step.status }} {{ 'is-current' if step.is_current else '' }}">
+              <span class="step-index">{{ step.index + 1 }}</span>
+              <span class="step-content">{{ step.content }}</span>
+              <span class="step-flag">{{ step.status_label }}</span>
+            </li>
+            {% endfor %}
+          </ol>
+
+          <div class="task-family-actions">
+            {% if run.status != 'completed' and run.current_step %}
+            <button type="button" class="btn-outline btn-inline" data-proxy-step="{{ run.task_id }}"
+                    data-step="{{ run.current_step_index }}">代完成当前步</button>
+            {% endif %}
+            {% if run.status != 'completed' %}
+            <button type="button" class="btn-primary btn-inline" data-proxy-all="{{ run.task_id }}">整件做完</button>
+            {% endif %}
+            <button type="button" class="btn-ghost btn-inline" data-reset-today="{{ run.task_id }}">重置今日进度</button>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-hint">还没有任务。请在下方创建，例如「准备午饭」拆成：洗手 → 拿碗 → 盛饭。</p>
+      {% endif %}
+    </section>
+
+    <section class="panel" id="week-board">
+      <header class="panel-header compact">
+        <div>
+          <h2>本周概况</h2>
+          <p>近 7 日任务完成件数（按当日已完成的任务数 / 生效任务数）。</p>
+        </div>
+      </header>
+      <div class="week-task-grid">
+        {% for day in week %}
+        <article class="week-task-day {{ 'is-today' if day.is_today else '' }}">
+          <span class="week-day-label">周{{ day.weekday }}</span>
+          <strong>{{ day.label }}</strong>
+          <div class="week-day-bar" aria-hidden="true"><span style="height: {{ day.percent }}%"></span></div>
+          <p>{{ day.completed }}/{{ day.total }} · {{ day.percent }}%</p>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel" id="create-task">
+      <header class="panel-header compact">
+        <div>
+          <h2>创建任务</h2>
+          <p>把一件事拆成有顺序的多步；老人必须按顺序完成，不能跳过中间步直接做后面的。</p>
+        </div>
+      </header>
+      <form class="task-create-form" id="task-create-form" method="post" action="{{ url_for('tasks_create') }}">
+        <div class="form-grid-2">
+          <label>
+            任务名称
+            <input type="text" name="title" maxlength="80" required placeholder="例如：准备午饭" />
+          </label>
+          <label>
+            建议时间
+            <input type="time" name="schedule_time" />
+          </label>
+        </div>
+        <label>
+          备注（可选）
+          <input type="text" name="note" maxlength="200" placeholder="给家属看的备注" />
+        </label>
+        <fieldset class="steps-editor">
+          <legend>步骤（按顺序）</legend>
+          <div id="steps-editor-list">
+            <div class="step-editor-row">
+              <span class="step-editor-num">1</span>
+              <input type="text" name="steps" maxlength="120" required placeholder="洗手" />
+              <button type="button" class="btn-ghost btn-inline" data-remove-step hidden>删除</button>
+            </div>
+            <div class="step-editor-row">
+              <span class="step-editor-num">2</span>
+              <input type="text" name="steps" maxlength="120" required placeholder="拿碗" />
+              <button type="button" class="btn-ghost btn-inline" data-remove-step>删除</button>
+            </div>
+            <div class="step-editor-row">
+              <span class="step-editor-num">3</span>
+              <input type="text" name="steps" maxlength="120" required placeholder="盛饭" />
+              <button type="button" class="btn-ghost btn-inline" data-remove-step>删除</button>
+            </div>
+          </div>
+          <button type="button" class="btn-outline btn-inline" id="add-step-btn">再加一步</button>
+        </fieldset>
+        <button type="submit" class="btn-primary btn-inline">创建任务</button>
+      </form>
+    </section>
+
+    <section class="panel" id="manage-tasks">
+      <header class="panel-header compact">
+        <div>
+          <h2>管理任务</h2>
+          <p>修改步骤文案后：若老人今天已经开始做，今天这一次仍按开始时的步骤继续。</p>
+        </div>
+      </header>
+      {% if templates %}
+      <ul class="task-manage-list">
+        {% for task in templates %}
+        <li class="task-manage-card">
+          <form method="post" action="{{ url_for('tasks_update', task_id=task.id) }}" class="task-edit-form">
+            <div class="form-grid-2">
+              <label>
+                任务名称
+                <input type="text" name="title" value="{{ task.title }}" maxlength="80" required />
+              </label>
+              <label>
+                建议时间
+                <input type="time" name="schedule_time" value="{{ task.schedule_time }}" />
+              </label>
+            </div>
+            <label>
+              备注
+              <input type="text" name="note" value="{{ task.note }}" maxlength="200" />
+            </label>
+            <fieldset class="steps-editor">
+              <legend>步骤</legend>
+              <div class="steps-editor-list" data-edit-steps>
+                {% for step in task.steps %}
+                <div class="step-editor-row">
+                  <span class="step-editor-num">{{ loop.index }}</span>
+                  <input type="text" name="steps" value="{{ step.content }}" maxlength="120" required />
+                  <button type="button" class="btn-ghost btn-inline" data-remove-step {{ 'hidden' if task.steps|length <= 1 else '' }}>删除</button>
+                </div>
+                {% endfor %}
+              </div>
+              <button type="button" class="btn-outline btn-inline" data-add-step>再加一步</button>
+            </fieldset>
+            <div class="task-manage-actions">
+              <button type="submit" class="btn-primary btn-inline">保存修改</button>
+            </div>
+          </form>
+          <form method="post" action="{{ url_for('tasks_delete', task_id=task.id) }}" class="inline-form"
+                onsubmit="return confirm('确定停用该任务？');">
+            <button type="submit" class="btn-ghost btn-inline">停用任务</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-hint">暂无任务模板。</p>
+      {% endif %}
+    </section>
+
+    {% else %}
+    {# ========== 老人端 ========== #}
+    {% if focus and focus.status != 'completed' %}
+    <section class="panel elder-focus-panel" id="elder-focus" data-task-id="{{ focus.task_id }}">
+      <header class="elder-focus-head">
+        <p class="welcome-kicker">{{ focus.title }}{% if focus.schedule_time %} · {{ focus.schedule_time }}{% endif %}</p>
+        <h2 id="elder-step-title">
+          {% if focus.status == 'not_started' %}
+          准备开始
+          {% elif focus.status == 'paused' %}
+          已暂停
+          {% else %}
+          第 {{ focus.current_step.index + 1 }} / {{ focus.total_steps }} 步
+          {% endif %}
+        </h2>
+        <div class="task-progress-bar elder-bar" aria-hidden="true">
+          <span id="elder-progress-fill" style="width: {{ focus.progress_percent }}%"></span>
+        </div>
+        <p class="elder-progress-text" id="elder-progress-text">{{ focus.done_count }}/{{ focus.total_steps }} · {{ focus.progress_percent }}%</p>
+      </header>
+
+      <div class="elder-step-stage">
+        <p class="elder-step-text" id="elder-step-text">
+          {% if focus.status == 'not_started' %}
+          点「开始」后，会一步一步引导您。
+          {% elif focus.current_step %}
+          {{ focus.current_step.content }}
+          {% else %}
+          今天的这件事已经做完了。
+          {% endif %}
+        </p>
+      </div>
+
+      <div class="elder-actions" id="elder-actions">
+        {% if focus.status == 'not_started' %}
+        <button type="button" class="btn-primary elder-btn" data-elder-start>开始</button>
+        {% elif focus.status == 'paused' %}
+        <button type="button" class="btn-primary elder-btn" data-elder-resume>继续</button>
+        {% else %}
+        <button type="button" class="btn-primary elder-btn" data-elder-done data-step="{{ focus.current_step_index }}">做好了</button>
+        <button type="button" class="btn-outline elder-btn" data-elder-skip data-step="{{ focus.current_step_index }}">跳过</button>
+        <button type="button" class="btn-ghost elder-btn" data-elder-pause>先不做了</button>
+        <button type="button" class="btn-ghost elder-btn" data-elder-speak>再说一遍</button>
+        {% endif %}
+      </div>
+    </section>
+    {% elif focus and focus.status == 'completed' %}
+    <section class="panel elder-focus-panel">
+      <h2>太好了，这件事做完了</h2>
+      <p class="welcome-desc">今天「{{ focus.title }}」的全部步骤都已完成。</p>
+    </section>
+    {% else %}
+    <section class="panel elder-focus-panel">
+      <h2>今天暂时没有安排任务</h2>
+      <p class="welcome-desc">请让家属在「任务清单」里为您创建要做的事。</p>
+    </section>
+    {% endif %}
+
+    <section class="panel">
+      <header class="panel-header compact">
+        <div>
+          <h2>今天还有这些</h2>
+          <p>点一项可以切换去做；进度会保存在云端。</p>
+        </div>
+      </header>
+      {% if board.tasks %}
+      <ul class="elder-task-switch">
+        {% for run in board.tasks %}
+        <li>
+          <a href="{{ url_for('tasks_page', focus_id=run.task_id) }}"
+             class="elder-switch-item {{ 'is-active' if focus and focus.task_id == run.task_id else '' }}">
+            <strong>{{ run.title }}</strong>
+            <span>{{ run.status_label }} · {{ run.done_count }}/{{ run.total_steps }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-hint">暂无任务。</p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
+{% endblock %}

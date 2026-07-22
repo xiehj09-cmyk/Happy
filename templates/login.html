@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}登录 · 记忆港湾{% endblock %}
+
+{% block content %}
+<main class="auth-shell">
+  <section class="brand-panel">
+    <p class="brand-mark">记忆港湾</p>
+    <h1 class="brand-title">温柔陪伴每一段记忆旅程</h1>
+    <p class="brand-desc">请选择以老人账号或家属账号登录。家属账号将自动进入已绑定老人的照护工作台；老人账号用于本人参与 CST 课程与日常使用。</p>
+  </section>
+
+  <section class="form-panel">
+    <div class="form-card">
+      <header class="form-header">
+        <h2>登录账号</h2>
+        <p>先选择身份，再输入对应账号的用户名与密码。</p>
+      </header>
+
+      <form class="auth-form" method="post" action="{{ url_for('login', next=request.args.get('next')) if request.args.get('next') else url_for('login') }}" novalidate data-auth-form>
+        <fieldset class="role-switch" data-role-switch>
+          <legend>登录身份</legend>
+          <label class="role-option">
+            <input type="radio" name="role" value="elder" {% if role != 'family' %}checked{% endif %} />
+            <span class="role-card">
+              <strong>老人账号</strong>
+              <small>长者本人登录，参与 CST 与日常照护</small>
+            </span>
+          </label>
+          <label class="role-option">
+            <input type="radio" name="role" value="family" {% if role == 'family' %}checked{% endif %} />
+            <span class="role-card">
+              <strong>家属账号</strong>
+              <small>子女/照护者登录，查看绑定老人的进度</small>
+            </span>
+          </label>
+        </fieldset>
+
+        <label class="field">
+          <span>用户名</span>
+          <input type="text" name="username" value="{{ username|default('') }}" autocomplete="username" required maxlength="32" placeholder="与注册时一致的用户名" />
+        </label>
+
+        <label class="field">
+          <span>密码</span>
+          <div class="password-wrap">
+            <input type="password" name="password" autocomplete="current-password" required minlength="6" placeholder="至少 6 位，区分大小写" />
+            <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+          </div>
+        </label>
+
+        <button type="submit" class="btn-primary">登录</button>
+      </form>
+
+      <nav class="form-links">
+        <a href="{{ url_for('forgot_password') }}">找回密码</a>
+        <a href="{{ url_for('register') }}">注册账号</a>
+      </nav>
+    </div>
+  </section>
+</main>
+{% endblock %}

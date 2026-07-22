@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}第 {{ session_info.num }} 次 · {{ session_info.title }} · CST{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tasks.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cst_practice.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content cst-session-page">
+    <section class="page-hero compact cst-hero-slim">
+      <div>
+        <p class="welcome-kicker">第 {{ session_info.num }} 次 CST</p>
+        <h1>{{ session_info.title }}</h1>
+        <p class="sec-desc">{{ session_info.summary }} · 约 {{ session_info.duration }} 分钟</p>
+      </div>
+    </section>
+
+    {% if session_info.celebrate %}
+    <section class="panel celebrate-banner" aria-live="polite">
+      <div class="celebrate-emoji" aria-hidden="true">🎉</div>
+      <div>
+        <h2>{{ session_info.celebrate_title }}</h2>
+        <p class="sec-desc">{{ session_info.celebrate_message }}</p>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="panel ro-panel{% if session_info.num == 10 %} ro-panel-emphasis{% endif %}">
+      <header class="panel-header compact">
+        <div><h2>现实定向</h2></div>
+      </header>
+      <dl class="ro-grid">
+        <div><dt>日期</dt><dd>{{ ro.date }} {{ ro.weekday }}</dd></div>
+        <div><dt>季节</dt><dd>{{ ro.season }}</dd></div>
+        <div><dt>时间</dt><dd>{{ ro.time }}</dd></div>
+        <div><dt>地点</dt><dd>{{ ro.place }}</dd></div>
+      </dl>
+    </section>
+
+    {% if session_info.practice_items %}
+    <section class="panel" id="cst-curriculum-practice" data-session-num="{{ session_info.num }}">
+      <header class="panel-header compact">
+        <div>
+          <h2>课程练习</h2>
+          <p class="sec-desc">点题目听播报，再用录音说说想法</p>
+        </div>
+      </header>
+      <div class="quiz-panel curriculum-quiz" data-curriculum-root>
+        {% for item in session_info.practice_items %}
+        <article class="quiz-item curriculum-item"
+                 data-curriculum-id="{{ item.id }}"
+                 data-label="{{ item.speak_label or item.prompt }}"
+                 data-caption="{{ item.speak_caption or item.hint or '' }}"
+                 data-ai-prompt="{{ item.ai_prompt or item.prompt }}"
+                 data-prompt="{{ item.prompt }}"
+                 data-hint="{{ item.hint or '' }}">
+          <div class="quiz-head">
+            <span class="quiz-index">{{ loop.index }}</span>
+            {% if item.emoji %}<span class="quiz-visual-inline" aria-hidden="true">{{ item.emoji }}</span>{% endif %}
+          </div>
+          <button type="button" class="card-speak-btn curriculum-speak-btn" aria-label="听题播报">
+            <span class="card-speak-icon" aria-hidden="true">♪</span>
+            <span class="card-speak-text" data-card-speak-text>{{ item.prompt }}</span>
+          </button>
+          {% if item.hint %}<p class="quiz-ref">{{ item.hint }}</p>{% endif %}
+          <div class="curriculum-voice-actions">
+            <button type="button" class="btn-primary curriculum-record-btn">录音回答</button>
+          </div>
+          <p class="curriculum-asr" data-curriculum-asr hidden></p>
+          <p class="practice-feedback curriculum-feedback" data-curriculum-feedback hidden></p>
+        </article>
+        {% endfor %}
+      </div>
+      <p class="status-line" id="curriculum-status"></p>
+    </section>
+    {% endif %}
+
+    {% if session_info.word_cloud or session_info.classify_game %}
+    <section class="panel">
+      {% if session_info.word_cloud %}
+      <header class="panel-header compact">
+        <div><h2>词语云</h2><p class="sec-desc">点选喜欢的词</p></div>
+      </header>
+      <div class="word-cloud" role="list" aria-label="词语云">
+        {% for word in session_info.word_cloud %}
+        <button type="button" class="word-chip" role="listitem" data-word="{{ word }}">{{ word }}</button>
+        {% endfor %}
+      </div>
+      <p class="word-cloud-hint" id="word-cloud-hint" hidden></p>
+      {% endif %}
+
+      {% if session_info.classify_game %}
+      <header class="panel-header compact">
+        <div><h2>分类小游戏</h2><p class="sec-desc">先点物品，再点篮子</p></div>
+      </header>
+      <div class="classify-game" data-classify-root data-success="{{ session_info.classify_game.success_hint }}">
+        <div class="classify-bins">
+          {% for bin in session_info.classify_game.bins %}
+          <button type="button" class="classify-bin" data-bin="{{ bin.id }}">
+            <span class="classify-bin-emoji">{{ bin.emoji }}</span>
+            <strong>{{ bin.label }}</strong>
+            <ul class="classify-bin-items" data-bin-items="{{ bin.id }}"></ul>
+          </button>
+          {% endfor %}
+        </div>
+        <div class="classify-pool" data-classify-pool>
+          {% for item in session_info.classify_game.item_list %}
+          <button type="button" class="classify-item" data-item-id="{{ item.id }}" data-correct-bin="{{ item.bin }}">
+            <span>{{ item.emoji }}</span> {{ item.label }}
+          </button>
+          {% endfor %}
+        </div>
+        <p class="classify-feedback" data-classify-feedback aria-live="polite"></p>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="panel" id="cst-live-practice"
+             data-session-num="{{ session_info.num }}"
+             data-role="{{ 'family' if is_family else 'elder' }}"
+             data-run-id="{{ practice_run.id if practice_run else '' }}"
+             data-speech-enabled="{{ '1' if speech_enabled else '0' }}">
+      <header class="panel-header compact practice-head">
+        <div>
+          <h2>个性化题目</h2>
+          <p class="sec-desc">家属资料生成 · 可语音作答</p>
+        </div>
+        {% if is_family %}
+        <button type="button" class="btn-primary btn-inline" id="btn-generate-practice">
+          {{ '换一批题' if practice_run else '生成题目' }}
+        </button>
+        {% endif %}
+      </header>
+
+      {% if is_family %}
+      <details class="materials-fold" id="cst-materials">
+        <summary>上传老人资料</summary>
+        <form class="material-upload-form" method="post" action="{{ url_for('cst_materials_upload') }}" enctype="multipart/form-data">
+          <input type="hidden" name="session_num" value="{{ session_info.num }}" />
+          <div class="form-grid-2">
+            <label>标题<input type="text" name="title" maxlength="80" required placeholder="全家福" /></label>
+            <label>类型
+              <select name="kind">
+                <option value="photo">照片</option>
+                <option value="note">文字</option>
+              </select>
+            </label>
+          </div>
+          <label>说明<input type="text" name="caption" maxlength="200" placeholder="人物、地点" /></label>
+          <label>文字<textarea name="text_content" rows="2" maxlength="2000"></textarea></label>
+          <label>文件<input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.gif,.txt,image/*" /></label>
+          <button type="submit" class="btn-primary btn-inline">上传</button>
+        </form>
+        {% if materials %}
+        <ul class="material-gallery">
+          {% for m in materials %}
+          <li class="material-card">
+            {% if m.kind == 'photo' and m.file_path %}
+            <a class="material-thumb" href="{{ url_for('cst_materials_file', material_id=m.id) }}" target="_blank" rel="noopener">
+              <img src="{{ url_for('cst_materials_file', material_id=m.id) }}" alt="{{ m.title }}" loading="lazy" />
+            </a>
+            {% else %}
+            <div class="material-thumb material-thumb-note" aria-hidden="true">📝</div>
+            {% endif %}
+            <div class="material-meta">
+              <strong>{{ m.title }}</strong>
+              <p>{{ m.caption or '—' }}</p>
+              <form method="post" action="{{ url_for('cst_materials_delete', material_id=m.id) }}" onsubmit="return confirm('移除？');">
+                <input type="hidden" name="session_num" value="{{ session_info.num }}" />
+                <button type="submit" class="btn-ghost btn-inline">移除</button>
+              </form>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </details>
+      {% endif %}
+
+      <div class="practice-meta-row">
+        <p class="meta-progress" id="practice-progress-text">
+          {% if practice_run %}
+          {{ practice_run.answered_ids|length }}/{{ practice_run.questions|length }} · {{ practice_run.progress_percent }}%
+          {% else %}
+          {% if is_family %}生成后开始{% else %}等待家属出题{% endif %}
+          {% endif %}
+        </p>
+        <div class="task-progress-bar meta-bar">
+          <span id="practice-progress-fill" style="width: {{ practice_run.progress_percent if practice_run else 0 }}%"></span>
+        </div>
+        <details class="speech-fold">
+          <summary>语速 / 音色</summary>
+          <div class="speech-toolbar">
+            <label class="speech-ctrl">语速 <input type="range" id="speech-spd" min="1" max="8" value="4" /> <span id="speech-spd-label">4</span></label>
+            <label class="speech-ctrl">音色
+              <select id="speech-per">
+                <option value="0" selected>女声</option>
+                <option value="4">情感女声</option>
+                <option value="1">男声</option>
+                <option value="3">情感男声</option>
+              </select>
+            </label>
+          </div>
+        </details>
+      </div>
+      <p class="status-line" id="practice-status"></p>
+
+      <div class="voice-focus" id="voice-focus" {% if not practice_run %}hidden{% endif %}>
+        <div class="voice-focus-media" id="voice-focus-media"></div>
+        <p class="voice-focus-index" id="voice-focus-index"></p>
+        <p class="voice-focus-prompt" id="voice-focus-prompt">请先生成题目</p>
+        <p class="voice-focus-hint" id="voice-focus-hint"></p>
+        <div class="quiz-options" id="voice-focus-options"></div>
+        <div class="voice-actions">
+          <button type="button" class="btn-primary" id="btn-speak-question">播报</button>
+          <button type="button" class="btn-outline" id="btn-repeat-question">再说一遍</button>
+          <button type="button" class="btn-primary" id="btn-record-toggle">录音回答</button>
+          <button type="button" class="btn-ghost" id="btn-rerecord" hidden>重录</button>
+          <button type="button" class="btn-outline" id="btn-next-question">下一题</button>
+        </div>
+        <p class="voice-asr-line"><span class="lbl">识别</span> <span id="voice-asr-text">—</span></p>
+        <p class="voice-fb-line"><span class="lbl">反馈</span> <span id="voice-feedback">—</span></p>
+      </div>
+
+      <details class="practice-all-details" id="practice-all-details" {% if not practice_run %}hidden{% endif %}>
+        <summary>全部个性化题目</summary>
+        <div class="live-practice-list" id="live-practice-list">
+          {% if practice_run and practice_run.questions %}
+            {% for q in practice_run.questions %}
+            <article class="live-practice-card {% if q.id in practice_run.answered_ids %}is-answered{% endif %}"
+                     data-qid="{{ q.id }}" data-index="{{ loop.index0 }}"
+                     style="--tone: {{ q.visual_tone or '#0f766e' }}">
+              <div class="live-practice-media">
+                {% if q.image_url %}
+                <img src="{{ q.image_url }}" alt="" loading="lazy" />
+                {% else %}
+                <div class="live-practice-fallback"><span>{{ q.visual_emoji or '💬' }}</span></div>
+                {% endif %}
+              </div>
+              <div class="live-practice-body">
+                <p class="quiz-prompt">{{ loop.index }}. {{ q.prompt }}</p>
+                <div class="quiz-options">
+                  {% for opt in q.options %}
+                  <button type="button" class="option-chip practice-live-option" data-answer="{{ opt }}">{{ opt }}</button>
+                  {% endfor %}
+                </div>
+              </div>
+            </article>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </details>
+    </section>
+
+    <details class="panel ref-fold">
+      <summary>主题参考（流程）</summary>
+      <ol class="cst-steps compact-steps">
+        {% for step in session_info.steps %}
+        <li>
+          <div class="step-head">
+            <strong>{{ loop.index }}. {{ step.name }}</strong>
+            <span>{{ step.minutes }} 分</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% if session_info.activities %}
+      <ul class="activity-list compact-acts">
+        {% for act in session_info.activities %}
+        <li>{{ act }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if session_info.ai_theme %}
+      <p class="sec-desc" style="margin-top:0.75rem;">
+        <a href="{{ url_for('device_index') }}" class="inline-link">去 AI 终端对话 →</a>
+      </p>
+      {% endif %}
+    </details>
+
+    {% if session_info.mvp_ready %}
+    <form class="panel" method="post" action="{{ url_for('cst_session', session_num=session_info.num) }}">
+      <header class="panel-header compact">
+        <div><h2>完成记录</h2><p class="sec-desc">课后选填</p></div>
+      </header>
+      <label class="field">
+        <span>情绪</span>
+        <select name="mood">
+          <option value="">请选择</option>
+          <option value="愉快" {% if existing and existing.mood == '愉快' %}selected{% endif %}>愉快</option>
+          <option value="平静" {% if existing and existing.mood == '平静' %}selected{% endif %}>平静</option>
+          <option value="一般" {% if existing and existing.mood == '一般' %}selected{% endif %}>一般</option>
+          <option value="焦虑" {% if existing and existing.mood == '焦虑' %}selected{% endif %}>焦虑</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>笔记</span>
+        <textarea name="notes" rows="2" placeholder="今日亮点…">{{ existing.notes if existing else '' }}</textarea>
+      </label>
+      <label class="field">
+        <span>摘要</span>
+        <input type="text" name="ai_summary" value="{{ existing.ai_summary if existing else '' }}" />
+      </label>
+      <div class="page-actions">
+        <button type="submit" class="btn-primary btn-inline">{{ '更新记录' if existing else '标记已完成' }}</button>
+        <a href="{{ url_for('cst_index') }}" class="btn-outline">返回课表</a>
+      </div>
+    </form>
+    {% else %}
+    <section class="panel">
+      <p class="sec-desc">该主题暂未开放。</p>
+      <a href="{{ url_for('cst_index') }}" class="btn-outline">返回课表</a>
+    </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/speechService.js') }}"></script>
+<script src="{{ url_for('static', filename='js/cst_session.js') }}"></script>
+<script src="{{ url_for('static', filename='js/cst_practice.js') }}"></script>
+{% endblock %}

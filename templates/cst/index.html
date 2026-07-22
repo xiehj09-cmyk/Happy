@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}CST 疗程 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content">
+    <section class="page-hero compact">
+      <div>
+        <p class="welcome-kicker">CST 认知刺激疗法</p>
+        <h1>14 次标准疗程</h1>
+        <p class="welcome-desc">
+          依据国际 CST 手册：7 周 × 每周 2 次，每次约 45 分钟。
+          当前阶段：<strong>{{ cst.phase_label }}</strong>，已完成 {{ cst.completed_count }}/{{ cst.total_count }} 次。
+          标准 14 次主题均可进入完成与打卡。
+        </p>
+      </div>
+      <aside class="progress-ring-wrap">
+        <div class="progress-ring" style="--pct: {{ cst.progress_percent }}">
+          <span>{{ cst.progress_percent }}%</span>
+        </div>
+        <p class="stat-note">强化期进度</p>
+      </aside>
+    </section>
+
+    <section class="panel">
+      <header class="panel-header compact">
+        <div>
+          <h2>小组信息</h2>
+          <p>连续性仪式：小组名与主题歌在每次课开场使用。</p>
+        </div>
+      </header>
+      <dl class="ro-grid">
+        <div><dt>小组名称</dt><dd>{{ cst.profile.group_name }}</dd></div>
+        <div><dt>主题歌</dt><dd>{{ cst.profile.theme_song }}</dd></div>
+        <div><dt>当前推荐</dt><dd>第 {{ cst.current_num }} 次 · {{ cst.current_title }}</dd></div>
+        <div><dt>单次结构</dt><dd>欢迎 → 定向板 → 热身 → 讨论 → 主活动 → 总结</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <header class="panel-header compact">
+        <div>
+          <h2>14 次主题课表</h2>
+        </div>
+      </header>
+      <ul class="cst-timeline">
+        {% for s in cst.sessions %}
+        <li class="cst-item status-{{ s.status }}">
+          <div class="cst-num">{{ s.num }}</div>
+          <div class="cst-body">
+            <div class="med-title-row">
+              <strong>{{ s.title }}</strong>
+              {% if s.status == 'completed' %}
+              <span class="module-badge badge-ok">已完成</span>
+              {% elif s.status == 'current' %}
+              <span class="module-badge badge-pending">进行中</span>
+              {% elif not s.mvp_ready %}
+              <span class="module-badge">内容完善中</span>
+              {% else %}
+              <span class="module-badge badge-ok">可开始</span>
+              {% endif %}
+            </div>
+            <p>{{ s.summary }}</p>
+            {% if s.completed_at %}
+            <small>完成于 {{ s.completed_at }}</small>
+            {% endif %}
+          </div>
+          <div class="cst-action">
+            {% if s.mvp_ready %}
+            <a href="{{ url_for('cst_session', session_num=s.num) }}" class="btn-ghost">进入</a>
+            {% else %}
+            <span class="btn-ghost is-disabled">敬请期待</span>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </main>
+</div>
+{% endblock %}

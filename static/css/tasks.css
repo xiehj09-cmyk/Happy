@@ -1,0 +1,388 @@
+/* 任务清单 */
+
+.task-board-list,
+.task-manage-list,
+.elder-task-switch {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.task-board-card,
+.task-manage-card {
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  background: rgba(15, 118, 110, 0.04);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+}
+
+.task-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  margin-bottom: 0.55rem;
+}
+
+.task-board-head time {
+  display: inline-block;
+  margin-right: 0.45rem;
+  font-size: 0.85rem;
+  color: #3d5560;
+}
+
+.task-board-head strong {
+  font-size: 1.1rem;
+  color: #1a2f36;
+}
+
+.task-status-pill {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(26, 47, 54, 0.08);
+  color: #3d5560;
+  vertical-align: middle;
+}
+
+.task-status-pill.status-in_progress {
+  background: rgba(15, 118, 110, 0.14);
+  color: #0b5f59;
+}
+
+.task-status-pill.status-paused {
+  background: rgba(154, 103, 0, 0.14);
+  color: #7a5200;
+}
+
+.task-status-pill.status-completed {
+  background: rgba(22, 101, 52, 0.14);
+  color: #166534;
+}
+
+.task-progress-meta {
+  font-size: 0.88rem;
+  color: #3d5560;
+  font-weight: 600;
+}
+
+.task-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(26, 47, 54, 0.08);
+  overflow: hidden;
+  margin-bottom: 0.55rem;
+}
+
+.task-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: #0f766e;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.task-current-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  color: #1a2f36;
+}
+
+.task-step-list {
+  margin: 0 0 0.85rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.task-step-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(26, 47, 54, 0.08);
+  font-size: 0.9rem;
+}
+
+.task-step-item.is-current {
+  border-color: rgba(15, 118, 110, 0.45);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+}
+
+.task-step-item.step-done .step-flag,
+.task-step-item.step-proxy_done .step-flag {
+  color: #166534;
+}
+
+.task-step-item.step-skipped .step-flag {
+  color: #7a5200;
+}
+
+.step-index {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(15, 118, 110, 0.12);
+  color: #0b5f59;
+}
+
+.step-flag {
+  font-size: 0.78rem;
+  color: #3d5560;
+  white-space: nowrap;
+}
+
+.task-family-actions,
+.task-manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.week-task-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.week-task-day {
+  text-align: center;
+  padding: 0.65rem 0.35rem;
+  border-radius: 12px;
+  background: rgba(26, 47, 54, 0.04);
+  border: 1px solid transparent;
+}
+
+.week-task-day.is-today {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.week-day-label {
+  display: block;
+  font-size: 0.72rem;
+  color: #3d5560;
+}
+
+.week-task-day strong {
+  display: block;
+  margin: 0.2rem 0 0.45rem;
+  font-size: 0.85rem;
+}
+
+.week-day-bar {
+  height: 56px;
+  width: 14px;
+  margin: 0 auto 0.35rem;
+  border-radius: 999px;
+  background: rgba(26, 47, 54, 0.08);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.week-day-bar > span {
+  display: block;
+  width: 100%;
+  min-height: 4px;
+  background: #0f766e;
+  border-radius: inherit;
+}
+
+.week-task-day p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #3d5560;
+}
+
+.task-create-form,
+.task-edit-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.task-create-form label,
+.task-edit-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a2f36;
+}
+
+.task-create-form input,
+.task-edit-form input {
+  min-height: 44px;
+  border: 1px solid rgba(26, 47, 54, 0.14);
+  border-radius: 12px;
+  padding: 0.55rem 0.75rem;
+  font: inherit;
+  font-weight: 400;
+}
+
+.steps-editor {
+  margin: 0;
+  padding: 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(26, 47, 54, 0.12);
+}
+
+.steps-editor legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+  color: #0b5f59;
+}
+
+.step-editor-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+
+.step-editor-num {
+  width: 1.6rem;
+  text-align: center;
+  font-weight: 700;
+  color: #0b5f59;
+}
+
+.empty-hint {
+  margin: 0;
+  color: #3d5560;
+}
+
+.inline-form {
+  margin-top: 0.55rem;
+}
+
+/* 老人端 */
+.elder-focus-panel {
+  text-align: center;
+  padding: 1.5rem 1.25rem 1.75rem;
+}
+
+.elder-focus-head h2 {
+  margin: 0.35rem 0 0.75rem;
+  font-family: var(--font-display, "Noto Serif SC", serif);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.elder-bar {
+  max-width: 280px;
+  margin: 0 auto 0.35rem;
+}
+
+.elder-progress-text {
+  margin: 0 0 1rem;
+  color: #3d5560;
+  font-size: 0.9rem;
+}
+
+.elder-step-stage {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem 1rem;
+  margin: 0 auto 1.25rem;
+  max-width: 520px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(15, 118, 110, 0.1), rgba(255, 252, 248, 0.9));
+  border: 1px solid rgba(15, 118, 110, 0.18);
+}
+
+.elder-step-text {
+  margin: 0;
+  font-size: clamp(1.45rem, 4vw, 2rem);
+  font-weight: 700;
+  line-height: 1.45;
+  color: #0b5f59;
+}
+
+.elder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.elder-btn {
+  min-width: min(100%, 200px);
+  min-height: 56px;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  border-radius: 16px !important;
+}
+
+.elder-task-switch {
+  gap: 0.55rem;
+}
+
+.elder-switch-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  background: rgba(26, 47, 54, 0.04);
+  border: 1px solid rgba(26, 47, 54, 0.08);
+}
+
+.elder-switch-item.is-active {
+  border-color: rgba(15, 118, 110, 0.4);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.elder-switch-item strong {
+  color: #1a2f36;
+}
+
+.elder-switch-item span {
+  font-size: 0.85rem;
+  color: #3d5560;
+}
+
+@media (max-width: 720px) {
+  .form-grid-2,
+  .week-task-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .week-task-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .week-task-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .elder-btn {
+    min-width: 100%;
+  }
+}

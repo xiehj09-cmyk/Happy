@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block title %}用药中心 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content">
+    <section class="page-hero compact">
+      <div>
+        <p class="welcome-kicker">用药中心 · {{ '家属照护' if is_family else '今日计划' }}</p>
+        <h1>{% if is_family %}「{{ care_label }}」用药中心{% else %}今日用药计划{% endif %}</h1>
+        <p class="welcome-desc">
+          {% if is_family %}
+          查看今日服药记录与 7 日分析；可代确认或跳过；从药物目录添加计划（时间、别名、放置区域）。
+          <strong>目录信息仅供参考，须严格遵医嘱。</strong>
+          {% else %}
+          以下是家属为您安排的今日用药。完成后请点「标记已服」。若忘记操作，可由家属代确认。
+          {% endif %}
+        </p>
+      </div>
+      <aside class="hero-stats">
+        <article class="stat-card">
+          <span class="stat-label">今日应服</span>
+          <strong class="stat-value">{{ meds|length }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">已完成</span>
+          <strong class="stat-value stat-ok">{{ taken_count }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">待处理</span>
+          <strong class="stat-value">{{ pending_count }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">依从率</span>
+          <strong class="stat-value">{{ adherence }}%</strong>
+        </article>
+      </aside>
+    </section>
+
+    {% if is_family %}
+    <nav class="med-anchors" aria-label="用药中心分区">
+      <a href="#ai-add">智能加药</a>
+      <a href="#today-record">今日记录</a>
+      <a href="#week-schedule">7 日日程</a>
+      <a href="#add-med">添加药物</a>
+      <a href="#catalog">药物目录</a>
+    </nav>
+
+    <section class="panel ai-med-panel" id="ai-add">
+      <header class="panel-header compact">
+        <div>
+          <h2>DeepSeek 智能加药</h2>
+          <p>用自然语言说明要加的药，例如「加入布洛芬」或「帮老人加阿司匹林」。系统会先联网检索说明书要点，再用 DeepSeek V4 Flash 整理后写入老人药单。</p>
+        </div>
+        <span class="module-badge {{ 'badge-ok' if ai_enabled else 'badge-warn' }}">
+          {{ '已就绪' if ai_enabled else '未配置 Key' }}
+        </span>
+      </header>
+
+      <p class="ai-disclaimer" role="note">
+        <strong>免责声明：</strong>仅供照护参考，不能替代医嘱。检索与模型整理的用法、剂量仅作提醒配置，实际用药请遵医生或药师指导。
+      </p>
+
+      <div class="ai-chat-log" id="ai-chat-log" role="log" aria-live="polite">
+        <div class="ai-bubble ai-bot">
+          <span class="ai-role">助手</span>
+          <p>您好。直接说「加入××药」即可。确认加药意图后，我会自动写入「{{ care_label }}」的药单。</p>
+        </div>
+      </div>
+
+      <form class="ai-chat-form" id="ai-chat-form">
+        <label class="sr-only" for="ai-chat-input">智能加药输入</label>
+        <input
+          id="ai-chat-input"
+          type="text"
+          maxlength="200"
+          autocomplete="off"
+          placeholder="例如：加入布洛芬 / 帮老人加阿司匹林"
+          {% if not ai_enabled %}disabled{% endif %}
+        />
+        <button type="submit" class="btn-primary btn-inline" id="ai-chat-send" {% if not ai_enabled %}disabled{% endif %}>
+          发送
+        </button>
+      </form>
+      <p class="field-hint" id="ai-chat-status">
+        {% if ai_enabled %}
+        模型：DeepSeek V4 Flash（已关闭深度思考，优先速度）
+        {% else %}
+        请在服务器 .env 配置 DEEPSEEK_API_KEY 后重启。
+        {% endif %}
+      </p>
+    </section>
+    {% endif %}
+
+    {# —— 今日服药记录 —— #}
+    <section class="panel" id="today-record">
+      <header class="panel-header compact">
+        <div>
+          <h2>今日服药记录</h2>
+          <p>
+            {% if is_family %}
+            可「代确认」避免老人忘记打卡，或「跳过」本次（如外出未带药）。依从率按已服用+代确认计算。
+            {% else %}
+            按时段查看今日药物；完成后点击「标记已服」。
+            {% endif %}
+          </p>
+        </div>
+      </header>
+
+      {% if meds %}
+      <ul class="med-list">
+        {% for med in meds %}
+        <li class="med-item {% if med.taken %}is-done{% elif med.skipped %}is-skipped{% endif %}">
+          <div class="med-time">{{ med.time }}</div>
+          <div class="med-body">
+            <div class="med-title-row">
+              <strong>{{ med.display_name }}</strong>
+              <span class="module-badge
+                {% if med.status == 'taken' %}badge-ok
+                {% elif med.status == 'proxy' %}badge-proxy
+                {% elif med.status == 'skipped' %}badge-skip
+                {% else %}badge-pending{% endif %}">
+                {{ med.status_label }}
+              </span>
+            </div>
+            <p>
+              {{ med.dose }}
+              {% if med.place_area %} · 放置：{{ med.place_area }}{% endif %}
+              {% if med.note %} · {{ med.note[:48] }}{% if med.note|length > 48 %}…{% endif %}{% endif %}
+            </p>
+            {% if med.taken_at %}
+            <small>记录时间：{{ med.taken_at }}</small>
+            {% endif %}
+
+            {% if is_family %}
+            <details class="med-edit">
+              <summary>调整计划</summary>
+              <form class="med-edit-form" method="post" action="{{ url_for('medication') }}">
+                <input type="hidden" name="action" value="update" />
+                <input type="hidden" name="med_id" value="{{ med.id }}" />
+                <label>剂量 <input type="text" name="dose" value="{{ med.dose }}" required maxlength="32" /></label>
+                <label>时间 <input type="time" name="schedule_time" value="{{ med.time }}" required /></label>
+                <label>别名 <input type="text" name="alias" value="{{ med.alias }}" maxlength="32" placeholder="老人易记的称呼" /></label>
+                <label>放置
+                  <select name="place_area">
+                    <option value="">未指定</option>
+                    {% for p in place_options %}
+                    <option value="{{ p }}" {% if med.place_area == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="full">备注 <input type="text" name="note" value="{{ med.note }}" maxlength="200" /></label>
+                <button type="submit" class="btn-ghost">保存</button>
+              </form>
+              <form method="post" action="{{ url_for('medication') }}" onsubmit="return confirm('确定从计划中移除？');">
+                <input type="hidden" name="action" value="remove" />
+                <input type="hidden" name="med_id" value="{{ med.id }}" />
+                <button type="submit" class="btn-ghost btn-danger-text">移除</button>
+              </form>
+            </details>
+            {% endif %}
+          </div>
+
+          {% if med.pending %}
+          <div class="med-actions">
+            {% if is_family %}
+            <form method="post" action="{{ url_for('medication') }}">
+              <input type="hidden" name="action" value="proxy" />
+              <input type="hidden" name="med_id" value="{{ med.id }}" />
+              <button type="submit" class="btn-ghost">代确认</button>
+            </form>
+            <form method="post" action="{{ url_for('medication') }}">
+              <input type="hidden" name="action" value="skip" />
+              <input type="hidden" name="med_id" value="{{ med.id }}" />
+              <button type="submit" class="btn-ghost btn-danger-text">跳过</button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('medication') }}">
+              <input type="hidden" name="action" value="take" />
+              <input type="hidden" name="med_id" value="{{ med.id }}" />
+              <button type="submit" class="btn-ghost">标记已服</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-hint">
+        {% if is_family %}
+        今日尚无计划。请到下方「添加药物」从目录加入。
+        {% else %}
+        今日暂无用药计划，请让家属在用药中心为您设定。
+        {% endif %}
+      </p>
+      {% endif %}
+    </section>
+
+    {% if is_family %}
+    {# —— 7 日日程与分析 —— #}
+    <section class="panel" id="week-schedule">
+      <header class="panel-header compact">
+        <div>
+          <h2>7 日服药日程与分析</h2>
+          <p>查看近 7 天「{{ care_label }}」每日完成情况；点击日期可展开当日明细。</p>
+        </div>
+      </header>
+
+      <div class="week-chart week-chart-rich">
+        {% for day in week_log %}
+        <div class="week-bar {{ 'is-today' if day.is_today else '' }}">
+          <span>{{ day.label }}</span>
+          <small class="week-date">{{ day.date_short }}</small>
+          <div class="bar-track"><i style="height: {{ day.rate }}%"></i></div>
+          <strong>{{ day.rate }}%</strong>
+          <small>{{ day.taken_count }}/{{ day.total }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="day-schedule-grid">
+        {% for day in week_days %}
+        <details class="day-card {{ 'is-today' if day.is_today else '' }}" {% if day.is_today %}open{% endif %}>
+          <summary>
+            <strong>{{ day.label }} {{ day.date_short }}</strong>
+            <span>
+              {% if day.is_today %}今日 · {% endif %}
+              完成 {{ day.taken_count }} · 跳过 {{ day.skipped_count }} · 待办 {{ day.pending_count }}
+              （{{ day.adherence }}%）
+            </span>
+          </summary>
+          {% if day.plan %}
+          <ul class="day-med-mini">
+            {% for med in day.plan %}
+            <li>
+              <span class="mini-time">{{ med.time }}</span>
+              <span>{{ med.display_name }}</span>
+              <span class="module-badge
+                {% if med.status == 'taken' %}badge-ok
+                {% elif med.status == 'proxy' %}badge-proxy
+                {% elif med.status == 'skipped' %}badge-skip
+                {% else %}badge-pending{% endif %}">{{ med.status_label }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="empty-hint compact">当日无计划药物。</p>
+          {% endif %}
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# —— 添加药物 —— #}
+    <section class="panel" id="add-med">
+      <header class="panel-header compact">
+        <div>
+          <h2>添加药物</h2>
+          <p>先从药物目录选择，再设定服药时间、老人易记的别名与放置区域。</p>
+        </div>
+      </header>
+
+      <form class="add-med-form" method="post" action="{{ url_for('medication') }}" data-add-med-form>
+        <input type="hidden" name="action" value="add_from_catalog" />
+
+        <label class="field">
+          <span>选择药物目录</span>
+          <select name="catalog_id" required id="add-catalog-select">
+            <option value="">请选择药品…</option>
+            {% for item in catalog %}
+            <option
+              value="{{ item.id }}"
+              data-dose="{{ item.dose }}"
+              data-time="{{ item.time }}"
+              data-effect="{{ item.effect }}"
+            >{{ item.name }}（{{ item.category }}）</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <p class="catalog-preview" id="catalog-preview" hidden></p>
+
+        <div class="add-med-grid">
+          <label class="field">
+            <span>服药时间</span>
+            <input type="time" name="schedule_time" id="add-time" required value="08:00" />
+          </label>
+          <label class="field">
+            <span>剂量（可改）</span>
+            <input type="text" name="dose" id="add-dose" maxlength="32" placeholder="将按目录默认填充" />
+          </label>
+          <label class="field">
+            <span>老人别名</span>
+            <input type="text" name="alias" maxlength="32" placeholder="如：晚饭后的小白片" />
+          </label>
+          <label class="field">
+            <span>放置区域</span>
+            <select name="place_area">
+              <option value="">可选</option>
+              {% for p in place_options %}
+              <option value="{{ p }}">{{ p }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary btn-inline">加入每日计划</button>
+      </form>
+    </section>
+
+    {# —— 药物目录清单 —— #}
+    <section class="panel" id="catalog">
+      <header class="panel-header compact">
+        <div>
+          <h2>药物目录清单</h2>
+          <p>初始参考目录：名称、作用与效果说明。添加计划请使用上方「添加药物」。</p>
+        </div>
+      </header>
+      <div class="catalog-grid">
+        {% for item in catalog %}
+        <article class="catalog-card">
+          <div class="med-title-row">
+            <strong>{{ item.name }}</strong>
+            <span class="module-badge badge-pending">{{ item.category }}</span>
+          </div>
+          <p class="catalog-effect"><span>作用效果：</span>{{ item.effect }}</p>
+          <p class="catalog-desc">{{ item.description }}</p>
+          <p class="catalog-meta">参考剂量 {{ item.dose }} · 建议时间 {{ item.time }}</p>
+          {% if item.already_added %}
+          <span class="catalog-added">已在计划中</span>
+          {% else %}
+          <a class="btn-ghost" href="#add-med" data-pick-catalog="{{ item.id }}">去添加</a>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% else %}
+    <section class="panel">
+      <header class="panel-header compact">
+        <div>
+          <h2>本周依从</h2>
+          <p>近 7 日按时服药情况。</p>
+        </div>
+      </header>
+      <div class="week-chart">
+        {% for day in week_log %}
+        <div class="week-bar {{ 'is-today' if day.is_today else '' }}">
+          <span>{{ day.label }}</span>
+          <div class="bar-track"><i style="height: {{ day.rate }}%"></i></div>
+          <small>{{ day.rate }}%</small>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel-header compact">
+        <div>
+          <h2>用药须知</h2>
+          <p>请按计划服药；忘记打卡可请家属代确认。</p>
+        </div>
+      </header>
+      <ul class="tips-list">
+        <li>看到别名更熟悉时，按别名找药即可。</li>
+        <li>放置区域可帮助您记得药在哪里。</li>
+        <li>不要自行增减剂量或停药。</li>
+      </ul>
+    </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if is_family %}
+<script src="{{ url_for('static', filename='js/medication.js') }}"></script>
+{% endif %}
+{% endblock %}

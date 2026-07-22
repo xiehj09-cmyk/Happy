@@ -1,0 +1,42 @@
+{% if show_assistant %}
+<aside class="ws-assistant" id="ws-assistant" data-enabled="{{ '1' if assistant_enabled else '0' }}">
+  <button type="button" class="ws-assistant-fab" id="ws-assistant-toggle" aria-expanded="false" aria-controls="ws-assistant-panel">
+    需要帮助？
+  </button>
+
+  <section class="ws-assistant-panel" id="ws-assistant-panel" hidden>
+    <header class="ws-assistant-header">
+      <div>
+        <strong>需要帮助？</strong>
+        <p>我们陪您慢慢来{% if assistant_care_label %} · {{ assistant_care_label }}{% endif %}</p>
+      </div>
+      <button type="button" class="ws-assistant-close" id="ws-assistant-close" aria-label="关闭帮助">×</button>
+    </header>
+
+    <p class="ws-assistant-disclaimer">可以说简单的话。例如问用药、问今天任务。不能替代医嘱。</p>
+
+    <div class="ws-assistant-log" id="ws-assistant-log" role="log" aria-live="polite">
+      <div class="ws-bubble ws-bot">
+        <span class="ws-role">助手</span>
+        <p>您好。可以问「今天哪些药还没吃」，或说「帮我创建一个准备午饭的任务」。我们一步一步来。</p>
+      </div>
+    </div>
+
+    <div class="ws-assistant-quick">
+      <button type="button" data-ws-quick="今天哪些药还没有吃？">今日未服</button>
+      <button type="button" data-ws-quick="今天任务清单做到哪了？">今日任务</button>
+      <button type="button" data-ws-quick="创建一个准备午饭的任务，步骤：洗手、拿碗、盛饭，时间 11:30">创建任务</button>
+      <button type="button" data-ws-quick="列出当前所有任务清单">任务列表</button>
+    </div>
+
+    <form class="ws-assistant-form" id="ws-assistant-form">
+      <label class="sr-only" for="ws-assistant-input">助手输入</label>
+      <input id="ws-assistant-input" type="text" maxlength="300" placeholder="例如：创建一个准备午饭的任务…" {% if not assistant_enabled %}disabled{% endif %} />
+      <button type="submit" class="btn-primary btn-inline" id="ws-assistant-send" {% if not assistant_enabled %}disabled{% endif %}>发送</button>
+    </form>
+    <p class="ws-assistant-status" id="ws-assistant-status">
+      {% if assistant_enabled %}DeepSeek · 用药 + 任务清单{% else %}未配置 DEEPSEEK_API_KEY{% endif %}
+    </p>
+  </section>
+</aside>
+{% endif %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}安全监护 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content">
+    <section class="page-hero compact">
+      <div>
+        <p class="welcome-kicker">安全监护</p>
+        <h1>居家安全监测中心</h1>
+        <p class="welcome-desc">
+          汇总定位手环、门磁传感器与活动监测设备的运行状态。当出现长时间静止、
+          夜间异常游走或离开安全区域等情况时，系统将推送告警至家属手机。
+        </p>
+      </div>
+      <aside class="hero-stats">
+        <article class="stat-card">
+          <span class="stat-label">设备在线</span>
+          <strong class="stat-value stat-ok">{{ online_count }}/{{ devices|length }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">今日告警</span>
+          <strong class="stat-value">{{ alert_count }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">安全区域</span>
+          <strong class="stat-value stat-ok">正常</strong>
+        </article>
+      </aside>
+    </section>
+
+    <div class="page-grid">
+      <section class="panel">
+        <header class="panel-header compact">
+          <div>
+            <h2>设备状态</h2>
+            <p>查看各硬件设备的电量、信号与最近上报时间，便于提前维护与更换。</p>
+          </div>
+        </header>
+
+        <div class="device-grid">
+          {% for device in devices %}
+          <article class="device-card {{ 'is-offline' if device.status == '离线' else '' }}">
+            <div class="device-icon device-icon-{{ device.type }}"></div>
+            <div>
+              <div class="med-title-row">
+                <strong>{{ device.name }}</strong>
+                <span class="module-badge {{ 'badge-ok' if device.status == '在线' else 'badge-warn' }}">{{ device.status }}</span>
+              </div>
+              <p>{{ device.desc }}</p>
+              <ul class="device-meta">
+                <li>电量 {{ device.battery }}%</li>
+                <li>信号 {{ device.signal }}</li>
+                <li>更新 {{ device.updated }}</li>
+              </ul>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <aside class="side-stack">
+        <section class="panel">
+          <header class="panel-header compact">
+            <div>
+              <h2>实时位置</h2>
+              <p>定位手环最近一次上报位置（示例：居家安全范围内）。</p>
+            </div>
+          </header>
+          <div class="location-card">
+            <p class="location-name">{{ location.name }}</p>
+            <p class="location-address">{{ location.address }}</p>
+            <p class="location-time">更新时间：{{ location.updated }}</p>
+            <span class="location-badge">处于安全区域</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header compact">
+            <div>
+              <h2>告警记录</h2>
+              <p>近 24 小时系统检测到的安全相关事件。</p>
+            </div>
+          </header>
+          <ul class="alert-list">
+            {% for alert in alerts %}
+            <li class="alert-item alert-{{ alert.level }}">
+              <time>{{ alert.time }}</time>
+              <div>
+                <strong>{{ alert.title }}</strong>
+                <p>{{ alert.desc }}</p>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header compact">
+            <div>
+              <h2>紧急联系人</h2>
+              <p>发生走失或紧急情况时，系统将依次通知以下联系人。</p>
+            </div>
+          </header>
+          <ul class="contact-list">
+            {% for c in contacts %}
+            <li>
+              <strong>{{ c.name }}</strong>
+              <span>{{ c.relation }} · {{ c.phone }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+{% endblock %}

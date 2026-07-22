@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}首页 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content">
+    {% if role == 'family' %}
+    <section class="welcome-panel family-hero" data-speak-card>
+      <div class="welcome-copy">
+        <div class="speak-toolbar">
+          <p class="welcome-kicker">家属照护台</p>
+          <button type="button" class="speak-btn">🔊 大声朗读</button>
+        </div>
+        <h1 id="greeting-title">您好，{{ user.username }}</h1>
+        <div data-speak-text>
+          <p class="welcome-desc">
+            {% if elder_username %}
+            正在照护 <strong>{{ elder_username }}</strong>。下面是老人记忆训练的进度，供您了解。训练请在老人账号完成；您这边重点管好任务、用药和安全。
+            {% else %}
+            下面是绑定老人的记忆训练进度。您可以在这里管理任务、用药与安全。
+            {% endif %}
+          </p>
+        </div>
+        <div class="welcome-actions">
+          <a href="{{ url_for('tasks_page') }}" class="btn-primary btn-inline">管理任务</a>
+          <a href="{{ url_for('medication') }}" class="btn-outline">用药管理</a>
+          <a href="{{ url_for('safety') }}" class="btn-outline">安全监护</a>
+        </div>
+      </div>
+
+      <aside class="welcome-stats" aria-label="老人训练进度">
+        <article class="stat-card">
+          <span class="stat-label">训练进度</span>
+          <strong class="stat-value">{{ cst.progress_percent }}%</strong>
+          <p class="stat-note">已完成 {{ cst.completed_count }}/{{ cst.total_count }} 次</p>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">当前阶段</span>
+          <strong class="stat-value stat-text">{{ cst.phase_label }}</strong>
+          <p class="stat-note">
+            {% if cst.all_done %}
+            强化期已全部完成
+            {% else %}
+            待进行第 {{ cst.current_num }} 次
+            {% endif %}
+          </p>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">建议主题</span>
+          <strong class="stat-value stat-text">{% if cst.all_done %}已完成{% else %}{{ cst.current_title }}{% endif %}</strong>
+          <p class="stat-note">由老人端开始训练</p>
+        </article>
+      </aside>
+    </section>
+
+    <section class="panel family-progress-panel" data-speak-card>
+      <header class="panel-header compact speak-toolbar">
+        <div>
+          <h2>{% if elder_username %}{{ elder_username }}{% else %}老人{% endif %}的训练进度</h2>
+          <p>只供查看，没有开始训练的按钮。</p>
+        </div>
+        <button type="button" class="speak-btn">🔊 大声朗读</button>
+      </header>
+      <ol class="family-session-progress" aria-label="训练进度列表" data-speak-text>
+        {% for s in cst.sessions %}
+        <li class="family-session-item is-{{ s.status }}">
+          <span class="family-session-num">第 {{ s.num }} 次</span>
+          <strong class="family-session-title">{{ s.title }}</strong>
+          <span class="family-session-status">
+            {% if s.status == 'completed' %}已完成{% elif s.status == 'current' %}进行中{% else %}未开始{% endif %}
+          </span>
+          {% if s.completed_at %}
+          <time class="family-session-time">{{ s.completed_at[:16] }}</time>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% else %}
+    <section class="welcome-panel cst-hero" data-speak-card>
+      <div class="welcome-copy">
+        <div class="speak-toolbar">
+          <p class="welcome-kicker">今天的记忆小练习</p>
+          <button type="button" class="speak-btn">🔊 大声朗读</button>
+        </div>
+        <h1 id="greeting-title">您好，{{ user.username }}</h1>
+        <div data-speak-text>
+          {% if cst.all_done %}
+          <p class="welcome-desc">太好了，您已完成 14 次强化练习。可以慢慢进入维持期，我们继续陪着您。</p>
+          {% else %}
+          <p class="welcome-desc">
+            现在是<strong>{{ cst.phase_label }}</strong>，已经完成 {{ cst.completed_count }}/{{ cst.total_count }} 次。
+            今天建议做第 {{ cst.current_num }} 次：<strong>「{{ cst.current_title }}」</strong>。
+            慢慢说、慢慢想就好，没有对错。
+          </p>
+          {% endif %}
+        </div>
+        <div class="welcome-actions">
+          {% if not cst.all_done %}
+          <a href="{{ url_for('cst_session', session_num=cst.current_num) }}" class="btn-primary btn-inline">开始今天的练习</a>
+          {% endif %}
+          <a href="{{ url_for('cst_index') }}" class="btn-outline">查看全部课表</a>
+          <a href="{{ url_for('device_index') }}" class="btn-outline">打开 AI 终端</a>
+        </div>
+      </div>
+
+      <aside class="welcome-stats" aria-label="练习概览">
+        <article class="stat-card">
+          <span class="stat-label">练习进度</span>
+          <strong class="stat-value">{{ cst.progress_percent }}%</strong>
+          <p class="stat-note">{{ cst.completed_count }}/{{ cst.total_count }} 次已完成</p>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">小组名称</span>
+          <strong class="stat-value stat-text">{{ cst.profile.group_name }}</strong>
+          <p class="stat-note">主题歌：{{ cst.profile.theme_song }}</p>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">AI 终端</span>
+          <strong class="stat-value {{ 'stat-ok' if device else '' }}">{{ '在线' if device and device.is_online else '未绑定' }}</strong>
+          <p class="stat-note"><a href="{{ url_for('device_index') }}" class="inline-link">管理设备</a></p>
+        </article>
+      </aside>
+    </section>
+
+    <section class="panel ro-panel" data-speak-card>
+      <header class="panel-header compact speak-toolbar">
+        <div>
+          <h2>今天是哪一天</h2>
+          <p>先一起确认日期、地点，帮助我们把心安在此刻。</p>
+        </div>
+        <button type="button" class="speak-btn">🔊 大声朗读</button>
+      </header>
+      <dl class="ro-grid" data-speak-text>
+        <div><dt>日期</dt><dd>{{ ro.date }}</dd></div>
+        <div><dt>星期</dt><dd>{{ ro.weekday }}</dd></div>
+        <div><dt>季节</dt><dd>{{ ro.season }}</dd></div>
+        <div><dt>地点</dt><dd>{{ ro.place }}</dd></div>
+      </dl>
+    </section>
+    {% endif %}
+
+    <div class="home-grid">
+      <section class="panel modules-panel" data-speak-card>
+        <header class="panel-header speak-toolbar">
+          <div>
+            <h2>{% if role == 'family' %}您可以做的事{% else %}您可以去的地方{% endif %}</h2>
+            <p>
+              {% if role == 'family' %}
+              管好用药、任务与安全，我们一起照顾家人。
+              {% else %}
+              每次只选一件事。点大按钮就能进去。
+              {% endif %}
+            </p>
+          </div>
+          <button type="button" class="speak-btn">🔊 大声朗读</button>
+        </header>
+        <div class="module-grid" data-speak-text>
+          {% for item in modules %}
+          <a href="{{ item.url }}" class="module-card module-link">
+            <div class="module-icon module-icon-{{ item.icon }}" aria-hidden="true"></div>
+            <div class="module-body">
+              <div class="module-title-row">
+                <h3>{{ item.title }}</h3>
+                <span class="module-badge {{ 'badge-ok' if item.status in ['可用', '在线'] else 'badge-pending' }}">{{ item.status }}</span>
+              </div>
+              <p>{{ item.desc }}</p>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <aside class="side-stack">
+        <section class="panel schedule-panel" data-speak-card>
+          <header class="panel-header compact speak-toolbar">
+            <div>
+              <h2>今天要记得的事</h2>
+              <p>
+                {% if role == 'family' %}
+                跟进任务与用药，一件一件来。
+                {% else %}
+                先做练习，再看看用药和安全。
+                {% endif %}
+              </p>
+            </div>
+            <button type="button" class="speak-btn">🔊 大声朗读</button>
+          </header>
+          <ul class="task-list" data-speak-text>
+            {% for task in today_tasks %}
+            <li class="task-item task-link">
+              <time>{{ task.time }}</time>
+              <div>
+                <strong>{{ task.title }}</strong>
+                <p>{{ task.note }}</p>
+                <a href="{{ task.url }}" class="inline-link">去看看 →</a>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+
+        <section class="panel tips-panel" data-speak-card>
+          <header class="panel-header compact speak-toolbar">
+            <div>
+              <h2>{% if role == 'family' %}给家属的小提醒{% else %}温柔小提醒{% endif %}</h2>
+            </div>
+            <button type="button" class="speak-btn">🔊 大声朗读</button>
+          </header>
+          <ul class="tips-list" data-speak-text>
+            {% if role == 'family' %}
+            <li>用药尽量固定时间，服完后在清单里点一下，方便核对。</li>
+            <li>复杂事情拆成多步，老人一次只看当前一步。</li>
+            <li>安全告警请优先处理；记忆训练请在老人账号完成。</li>
+            {% else %}
+            <li>一次只问一件事，慢慢等回答，不急着纠正。</li>
+            <li>没有倒计时，也没有错题惩罚，说出来就很好。</li>
+            <li>这里是陪伴练习，不能代替医生面诊与处方。</li>
+            {% endif %}
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
+{% endblock %}

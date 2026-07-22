@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}认知训练 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content">
+    {% if result %}
+    <section class="panel result-panel">
+      <header class="panel-header">
+        <div>
+          <h2>训练结果</h2>
+          <p>本次练习基于 MMSE / MoCA 常见筛查题型随机组卷，仅供认知训练参考，不能替代医学诊断。</p>
+        </div>
+      </header>
+
+      <div class="result-summary">
+        <div class="result-score">
+          <strong>{{ result.correct }}/{{ result.total }}</strong>
+          <span>正确题数</span>
+        </div>
+        <div class="result-meta">
+          <p>正确率 <strong>{{ result.percent }}%</strong> · 评估等级 <strong>{{ result.level }}</strong></p>
+          <p class="result-tip">建议每周完成 3–5 次训练，并配合规律作息与适度社交活动。</p>
+        </div>
+      </div>
+
+      <ul class="result-list">
+        {% for item in result.details %}
+        <li class="result-item {{ 'is-correct' if item.correct else 'is-wrong' }}">
+          <span class="result-badge">{{ '正确' if item.correct else '待加强' }}</span>
+          <div>
+            <strong>{{ item.category }}</strong>
+            <p>{{ item.prompt }}</p>
+            <small>您的回答：{{ item.user_answer }} · 参考答案：{{ item.expected or '—' }}</small>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <div class="page-actions">
+        <a href="{{ url_for('training') }}" class="btn-primary btn-inline">再练一组</a>
+        <a href="{{ url_for('index') }}" class="btn-outline">返回首页</a>
+      </div>
+    </section>
+    {% else %}
+    <section class="page-hero">
+      <div>
+        <p class="welcome-kicker">今日认知训练</p>
+        <h1>随机认知筛查练习</h1>
+        <p class="welcome-desc">
+          本题库参考 MMSE（简易精神状态检查）与 MoCA（蒙特利尔认知评估）常见题型，
+          涵盖定向力、即刻记忆、延迟回忆、注意力、命名、语言理解与抽象思维等维度。
+          每次练习将随机抽取 {{ questions|length }} 道题，请尽量独立完成。
+        </p>
+      </div>
+      <aside class="hero-note panel">
+        <h3>作答提示</h3>
+        <ul class="tips-list">
+          <li>请在安静环境中完成，避免他人提示答案。</li>
+          <li>记忆题请先记住词语，完成其他题目后再回忆。</li>
+          <li>本练习仅用于日常认知训练，如有疑虑请前往医院评估。</li>
+        </ul>
+      </aside>
+    </section>
+
+    <form class="panel quiz-panel" method="post" action="{{ url_for('training') }}">
+      {% for q in questions %}
+      <article class="quiz-item" id="q-{{ q.id }}">
+        <header class="quiz-head">
+          <span class="quiz-index">第 {{ q.index }} 题</span>
+          <span class="quiz-tag">{{ q.category }}</span>
+          <span class="quiz-ref">{{ q.reference }}</span>
+        </header>
+
+        {% if q.image_label %}
+        <p class="quiz-visual">{{ q.image_label }}</p>
+        {% endif %}
+
+        <p class="quiz-prompt">{{ q.prompt }}</p>
+
+        {% if q.type == 'choice' %}
+        <div class="quiz-options">
+          {% for opt in q.options %}
+          <label class="option-chip">
+            <input type="radio" name="{{ q.id }}" value="{{ opt }}" required />
+            <span>{{ opt }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% elif q.type == 'input' %}
+        <label class="field">
+          <span>您的答案</span>
+          <input type="text" name="{{ q.id }}" required placeholder="请输入答案" autocomplete="off" />
+        </label>
+        {% elif q.type == 'recall' %}
+        <label class="field">
+          <span>请写出您记住的词语</span>
+          <input type="text" name="{{ q.id }}" {% if q.id == 'memory_delayed' %}required{% endif %} placeholder="多个词语请用顿号分隔" autocomplete="off" />
+        </label>
+        {% endif %}
+      </article>
+      {% endfor %}
+
+      <div class="page-actions">
+        <button type="submit" class="btn-primary btn-inline">提交答卷</button>
+        <a href="{{ url_for('index') }}" class="btn-outline">返回首页</a>
+      </div>
+    </form>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

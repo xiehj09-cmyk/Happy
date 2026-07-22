@@ -1,0 +1,458 @@
+/**
+ * 适老化全局增强（作用于现有页面，不新增路由）
+ * - 正文字号 ≥ 20px，标题 ≥ 32px，按钮字 ≥ 22px
+ * - 高对比、大留白、大触控、缓慢过渡
+ */
+:root {
+  --ink: #243038;
+  --ink-soft: #3d4d56;
+  --paper: #f3f1ea;
+  --panel: #faf8f3;
+  --line: rgba(36, 48, 56, 0.16);
+  --teal: #1f5c57;
+  --teal-deep: #154540;
+  --sand: #d4c4a8;
+  --shadow: 0 8px 22px rgba(36, 48, 56, 0.12);
+  --radius: 18px;
+  --touch-min: 56px;
+  --space-loose: 1.75rem;
+  --motion: 0.55s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 20px;
+}
+
+body {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.bg-layer {
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 10%, rgba(232, 238, 245, 0.95), transparent 55%),
+    linear-gradient(165deg, #f3f1ea 0%, #e8eef5 45%, #ebe6db 100%);
+}
+
+.bg-layer::after {
+  opacity: 0.35;
+}
+
+/* —— 按钮：大触控、清晰字号 —— */
+.btn-primary,
+.btn-outline,
+.btn-ghost,
+.btn-inline,
+button.btn-primary,
+a.btn-primary,
+a.btn-outline,
+a.btn-ghost {
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  padding: 0.85rem 1.35rem;
+  font-size: 1.1rem; /* ≈22px */
+  font-weight: 700;
+  border-radius: 16px;
+  transition: transform var(--motion), background var(--motion), box-shadow var(--motion), border-color var(--motion);
+  box-shadow: var(--shadow);
+}
+
+.btn-primary {
+  background: var(--teal);
+  color: #f7faf8;
+  letter-spacing: 0.01em;
+}
+
+.btn-primary:hover {
+  background: var(--teal-deep);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #8aa4b8;
+  background: #f4f8fc;
+  color: #1e4d7b;
+  text-decoration: none;
+}
+
+.btn-outline:hover {
+  background: #e7eef6;
+}
+
+.btn-ghost {
+  min-height: 48px;
+  font-size: 1.05rem;
+  box-shadow: none;
+}
+
+.btn-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  text-decoration: none;
+}
+
+/* —— 顶栏导航 —— */
+.home-topbar {
+  background: rgba(250, 248, 243, 0.96);
+  border-bottom: 2px solid var(--line);
+}
+
+.home-topbar-inner {
+  padding: 1rem 1.5rem;
+  gap: 1.25rem;
+}
+
+.brand-mark.compact {
+  font-size: 1.55rem;
+}
+
+.home-tagline {
+  font-size: 0.95rem;
+}
+
+.home-nav {
+  gap: 0.5rem;
+}
+
+.home-nav a {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 14px;
+  color: var(--ink);
+  transition: background var(--motion), color var(--motion);
+}
+
+.home-nav a.is-active {
+  background: var(--teal);
+  color: #f7faf8;
+}
+
+.user-meta strong {
+  font-size: 1.05rem;
+}
+
+.user-meta span {
+  font-size: 0.95rem;
+  max-width: 220px;
+  white-space: normal;
+}
+
+/* —— 首页内容区 —— */
+.home-content,
+.page-content {
+  padding: 2rem 1.5rem 4rem;
+  gap: var(--space-loose);
+}
+
+.welcome-panel,
+.panel,
+.page-hero,
+.quiz-item,
+.module-card,
+.stat-card,
+.task-item {
+  padding: var(--space-loose) !important;
+}
+
+.welcome-panel {
+  gap: 1.75rem;
+  border: 2px solid var(--line);
+}
+
+.welcome-kicker {
+  font-size: 1rem;
+}
+
+.welcome-copy h1,
+.page-hero h1,
+#greeting-title {
+  font-size: clamp(2rem, 4vw, 2.6rem) !important; /* ≥32px */
+  line-height: 1.25;
+  margin-bottom: 1rem;
+}
+
+.welcome-desc,
+.panel-header p,
+.sec-desc,
+.module-body p,
+.stat-note,
+.task-item p {
+  font-size: 1.05rem !important;
+  line-height: 1.65;
+}
+
+.welcome-actions,
+.page-actions,
+.hero-actions {
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.panel {
+  border: 2px solid var(--line);
+}
+
+.panel-header h2,
+.modules-panel h2,
+.schedule-panel h2,
+.tips-panel h2,
+.family-progress-panel h2 {
+  font-size: 1.6rem !important; /* ~32px */
+  margin-bottom: 0.5rem;
+}
+
+.module-grid {
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.module-card {
+  gap: 1rem;
+  border-radius: 18px;
+  border: 2px solid rgba(31, 92, 87, 0.14);
+  min-height: 120px;
+  transition: transform var(--motion), box-shadow var(--motion);
+}
+
+.module-icon {
+  width: 56px;
+  height: 56px;
+}
+
+.module-body h3 {
+  font-size: 1.25rem !important;
+}
+
+.module-badge {
+  font-size: 0.95rem;
+  padding: 0.35rem 0.7rem;
+}
+
+.stat-card {
+  border-radius: 16px;
+  border: 2px solid var(--line);
+}
+
+.stat-label {
+  font-size: 1rem !important;
+}
+
+.stat-value {
+  font-size: 2rem !important;
+}
+
+.home-grid {
+  gap: 1.75rem;
+}
+
+.side-stack {
+  gap: 1.5rem;
+}
+
+.task-list {
+  gap: 1rem;
+}
+
+.task-item time {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tips-list li {
+  font-size: 1.05rem;
+  margin-bottom: 0.85rem;
+  line-height: 1.6;
+}
+
+/* 家属进度列表 */
+.family-session-item {
+  padding: 1rem 1.1rem !important;
+  gap: 0.85rem;
+  min-height: 64px;
+  font-size: 1.05rem;
+}
+
+.family-session-title {
+  font-size: 1.15rem;
+}
+
+/* —— 大声朗读 —— */
+.speak-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.speak-btn {
+  flex: 0 0 auto;
+  min-height: 56px;
+  min-width: 148px;
+  padding: 0.65rem 1rem;
+  border: 2px solid #8aa4b8;
+  border-radius: 14px;
+  background: #eef5fb;
+  color: #1e4d7b;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(30, 77, 123, 0.12);
+  transition: background var(--motion), color var(--motion);
+}
+
+.speak-btn:hover {
+  background: #ddeaf6;
+}
+
+.speak-btn.is-speaking {
+  background: #1e4d7b;
+  color: #f4f8fc;
+  border-color: #1e4d7b;
+}
+
+/* —— 工作台助手：改成「需要帮助？」大按钮观感 —— */
+.ws-assistant {
+  right: 1.25rem;
+  bottom: 1.25rem;
+}
+
+.ws-assistant-fab {
+  min-height: 72px;
+  padding: 1rem 1.4rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 12px 28px rgba(31, 92, 87, 0.35);
+  transition: transform var(--motion), background var(--motion);
+}
+
+.ws-assistant-fab:hover {
+  transform: translateY(-3px);
+  background: var(--teal-deep);
+}
+
+.ws-assistant-panel {
+  width: min(420px, calc(100vw - 1.5rem));
+  padding: 1.25rem;
+  border-radius: 18px;
+  border: 2px solid var(--line);
+  transition: opacity var(--motion), transform var(--motion);
+}
+
+.ws-assistant-header strong {
+  font-size: 1.25rem;
+}
+
+.ws-assistant-header p,
+.ws-assistant-disclaimer,
+.ws-assistant-status {
+  font-size: 1rem;
+}
+
+.ws-assistant-quick button {
+  min-height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.55rem 0.85rem;
+}
+
+.ws-assistant-form input {
+  min-height: 56px;
+  font-size: 1.05rem;
+  padding: 0.75rem 1rem;
+}
+
+/* —— 通用页面/CST/任务：放大关键控件 —— */
+.option-chip,
+.word-chip,
+.curriculum-record-btn,
+.card-speak-btn,
+.voice-actions button {
+  min-height: 52px !important;
+  font-size: 1.05rem !important;
+  padding: 0.7rem 1rem !important;
+}
+
+.quiz-prompt,
+.card-speak-text,
+.voice-focus-prompt {
+  font-size: 1.25rem !important;
+  line-height: 1.5;
+}
+
+.ro-grid {
+  gap: 1rem;
+}
+
+.ro-grid dt {
+  font-size: 1rem;
+}
+
+.ro-grid dd {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* 登录页也略放大 */
+.auth-shell {
+  gap: 2.5rem;
+}
+
+.brand-title {
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+}
+
+.brand-desc,
+.field label,
+.field input,
+.field select {
+  font-size: 1.05rem;
+}
+
+.field input,
+.field select {
+  min-height: 56px;
+  padding: 0.85rem 1rem;
+}
+
+@media (max-width: 860px) {
+  .home-topbar-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .home-nav {
+    justify-content: flex-start;
+  }
+
+  .home-nav a {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .welcome-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .speak-btn {
+    width: 100%;
+  }
+}

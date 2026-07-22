@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}注册 · 记忆港湾{% endblock %}
+
+{% block content %}
+<main class="auth-shell">
+  <section class="brand-panel">
+    <p class="brand-mark">记忆港湾</p>
+    <h1 class="brand-title">创建家庭照护空间</h1>
+    <p class="brand-desc">可注册老人账号或家属账号。选择家属时，必须同时为长者创建并绑定一个老人账号，之后双方可分别登录。</p>
+  </section>
+
+  <section class="form-panel">
+    <div class="form-card form-card-wide">
+      <header class="form-header">
+        <h2>注册账号</h2>
+        <p>请先选择账号类型。家属注册时，下方「绑定老人账号」为必填项。</p>
+      </header>
+
+      <form class="auth-form" method="post" action="{{ url_for('register') }}" novalidate data-auth-form data-require-confirm data-register-form>
+        <fieldset class="role-switch" data-role-switch>
+          <legend>账号类型</legend>
+          <label class="role-option">
+            <input type="radio" name="role" value="elder" {% if role == 'elder' %}checked{% endif %} data-role-input />
+            <span class="role-card">
+              <strong>老人账号</strong>
+              <small>长者本人使用，无需额外绑定</small>
+            </span>
+          </label>
+          <label class="role-option">
+            <input type="radio" name="role" value="family" {% if role != 'elder' %}checked{% endif %} data-role-input />
+            <span class="role-card">
+              <strong>家属账号</strong>
+              <small>须同时注册并绑定老人账号</small>
+            </span>
+          </label>
+        </fieldset>
+
+        <div class="form-section">
+          <h3 class="form-section-title" data-self-title>您的账号信息</h3>
+          <label class="field">
+            <span>用户名</span>
+            <input type="text" name="username" value="{{ username|default('') }}" autocomplete="username" required maxlength="32" placeholder="2–32 位，支持中文、字母、数字与下划线" />
+          </label>
+
+          <label class="field">
+            <span>邮箱</span>
+            <input type="email" name="email" value="{{ email|default('') }}" autocomplete="email" required placeholder="example@mail.com" />
+            <small class="field-hint">找回密码时需与用户名同时校验。</small>
+          </label>
+
+          <label class="field">
+            <span>密码</span>
+            <div class="password-wrap">
+              <input type="password" name="password" autocomplete="new-password" required minlength="6" placeholder="建议 8 位以上，含字母与数字" />
+              <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>确认密码</span>
+            <div class="password-wrap">
+              <input type="password" name="confirm_password" autocomplete="new-password" required minlength="6" placeholder="请再次输入上方密码以确认" />
+              <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-section elder-bind-panel" data-elder-bind {% if role == 'elder' %}hidden{% endif %}>
+          <h3 class="form-section-title">绑定老人账号（必填）</h3>
+          <p class="field-hint bind-hint">将为长者创建独立登录账号。家属登录后可管理该老人的任务、用药与安全监护。</p>
+
+          <label class="field">
+            <span>与老人的关系</span>
+            <input type="text" name="relation" value="{{ relation|default('家属') }}" maxlength="16" placeholder="如：女儿、儿子、护工" />
+          </label>
+
+          <label class="field">
+            <span>老人用户名</span>
+            <input type="text" name="elder_username" value="{{ elder_username|default('') }}" maxlength="32" placeholder="为长者设置的登录名，如「王妈妈」" data-elder-required />
+          </label>
+
+          <label class="field">
+            <span>老人登录密码</span>
+            <div class="password-wrap">
+              <input type="password" name="elder_password" minlength="6" placeholder="至少 6 位，供老人本人登录" data-elder-required />
+              <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>确认老人密码</span>
+            <div class="password-wrap">
+              <input type="password" name="elder_confirm_password" minlength="6" placeholder="再次输入老人密码" data-elder-required />
+              <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+            </div>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary">创建账号</button>
+      </form>
+
+      <nav class="form-links">
+        <a href="{{ url_for('login') }}">已有账号？去登录</a>
+        <a href="{{ url_for('forgot_password') }}">找回密码</a>
+      </nav>
+    </div>
+  </section>
+</main>
+{% endblock %}

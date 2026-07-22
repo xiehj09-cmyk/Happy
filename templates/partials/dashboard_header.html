@@ -1,0 +1,40 @@
+<header class="home-topbar">
+  <div class="home-topbar-inner">
+    <div class="home-brand">
+      <p class="brand-mark compact">记忆港湾</p>
+      {% if role == 'family' %}
+      <span class="home-tagline">陪您慢慢走 · 居家记忆关怀</span>
+      {% else %}
+      <span class="home-tagline">陪您慢慢走 · 记忆小练习</span>
+      {% endif %}
+    </div>
+
+    <nav class="home-nav" aria-label="主导航">
+      <a href="{{ url_for('index') }}" class="{{ 'is-active' if active == 'index' else '' }}">首页</a>
+      {% if role != 'family' %}
+      <a href="{{ url_for('cst_index') }}" class="{{ 'is-active' if active == 'cst' else '' }}">记忆练习</a>
+      <a href="{{ url_for('device_index') }}" class="{{ 'is-active' if active == 'device' else '' }}">AI 终端</a>
+      {% endif %}
+      <a href="{{ url_for('tasks_page') }}" class="{{ 'is-active' if active == 'tasks' else '' }}">任务清单</a>
+      <a href="{{ url_for('medication') }}" class="{{ 'is-active' if active == 'medication' else '' }}">用药管理</a>
+      <a href="{{ url_for('safety') }}" class="{{ 'is-active' if active == 'safety' else '' }}">安全监护</a>
+    </nav>
+
+    <div class="home-user">
+      <div class="user-meta">
+        <strong>{{ user.username }}</strong>
+        <span>
+          {{ role_label }}
+          {% if role == 'family' and elder_username %}
+            · 照护 {{ elder_username }}
+          {% else %}
+            · {{ user.email }}
+          {% endif %}
+        </span>
+      </div>
+      <form method="post" action="{{ url_for('logout') }}">
+        <button type="submit" class="btn-ghost">退出登录</button>
+      </form>
+    </div>
+  </div>
+</header>
