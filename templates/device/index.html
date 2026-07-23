@@ -98,7 +98,7 @@
             <button type="submit" class="btn-primary btn-inline">绑定设备</button>
           </form>
           {% endif %}
-          <p class="stat-note">脚本 API：<code class="api-snippet inline">{{ url_for('api_device_script', _external=True) }}</code></p>
+          <p class="stat-note">脚本 API：<code class="api-snippet inline">{{ request.url_root.rstrip('/') }}{{ url_for('api_device_script') }}</code></p>
         </section>
 
         <details class="panel prompt-details">

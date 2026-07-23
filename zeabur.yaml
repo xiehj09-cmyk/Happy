@@ -66,6 +66,8 @@ spec:
             default: "8080"
           FLASK_DEBUG:
             default: "0"
+          TRUST_PROXY:
+            default: "1"
           SECRET_KEY:
             default: ${SECRET_KEY}
           MCP_API_TOKEN:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 from datetime import datetime
@@ -126,8 +127,13 @@ app.secret_key = SECRET_KEY
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
-# Zeabur / 反向代理后正确识别 HTTPS 与 Host
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+# 仅在反向代理（如 Zeabur）后启用；局域网直连时不要改写 Host，否则易 500
+_TRUST_PROXY = os.environ.get("TRUST_PROXY", "").strip().lower() in {"1", "true", "yes", "on"}
+_IS_ZEABUR = bool(os.environ.get("ZEABUR") or os.environ.get("ZEABUR_ENVIRONMENT"))
+if _TRUST_PROXY or _IS_ZEABUR:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.config["SESSION_COOKIE_SECURE"] = True
+    app.config["PREFERRED_URL_SCHEME"] = "https"
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{2,32}$")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -153,12 +159,26 @@ def close_db(_exc: BaseException | None = None) -> None:
 def init_db() -> None:
     db = get_db()
     ensure_user_auth_schema(db)
-    ensure_mcp_user_schema(db)
+    try:
+        ensure_mcp_user_schema(db)
+    except Exception as exc:  # noqa: BLE001
+        app.logger.exception("ensure_mcp_user_schema failed: %s", exc)
     ensure_cst_tables(db)
     ensure_practice_tables(db)
     ensure_medication_tables(db)
     ensure_task_tables(db)
     ensure_voice_matter_tables(db)
+
+
+@app.errorhandler(500)
+def handle_500(err):
+    app.logger.exception("Internal Server Error: %s", err)
+    return (
+        "<h1>服务暂时出错</h1><p>请稍后刷新。若在局域网访问，请确认使用服务器 IP 与端口，"
+        "并已重启最新代码。</p>",
+        500,
+        {"Content-Type": "text/html; charset=utf-8"},
+    )
 
 
 def login_required(view):
@@ -2072,10 +2092,12 @@ def logout():
 if __name__ == "__main__":
     with app.app_context():
         init_db()
-    if DEBUG:
+    # 强制关闭调试重载，避免局域网访问异常；需要调试时设 FLASK_DEBUG=1 且本机访问
+    use_debug = DEBUG and HOST in {"127.0.0.1", "localhost"}
+    if use_debug:
         app.run(debug=True, host=HOST, port=PORT)
     else:
         from waitress import serve
 
-        print(f"记忆港湾已启动 · http://{HOST}:{PORT}")
+        print(f"记忆港湾已启动 · http://{HOST}:{PORT}（Waitress）")
         serve(app, host=HOST, port=PORT, threads=THREADS)
