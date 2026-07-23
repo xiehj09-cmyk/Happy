@@ -1133,13 +1133,85 @@
 }
 
 .chat-grid {
-  align-items: stretch;
+  align-items: start;
 }
 
 .chat-panel {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
-  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.cst-chat-panel .visual-stage {
+  min-height: 110px;
+  max-height: 180px;
+  flex: 0 0 auto;
+}
+
+.chat-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0;
+}
+
+.chat-panel .chat-log {
+  margin: 0;
+  max-height: 280px;
+  min-height: 160px;
+}
+
+.chat-panel .chat-input-row {
+  margin: 0;
+}
+
+.chat-panel .chat-hint {
+  margin: 0;
+}
+
+.companion-grid {
+  align-items: start;
+}
+
+.companion-chat-panel {
+  max-width: 100%;
+}
+
+.companion-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.companion-chip {
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.06);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.companion-chip:hover,
+.companion-chip:focus-visible {
+  background: rgba(15, 118, 110, 0.14);
+}
+
+.prompt-details {
+  padding: 0.85rem 1rem;
+}
+
+.prompt-details summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.prompt-details .prompt-box {
+  margin-top: 0.75rem;
 }
 
 .visual-stage {

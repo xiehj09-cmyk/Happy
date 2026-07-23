@@ -108,7 +108,8 @@
           <a href="{{ url_for('cst_session', session_num=cst.current_num) }}" class="btn-primary btn-inline">开始今天的练习</a>
           {% endif %}
           <a href="{{ url_for('cst_index') }}" class="btn-outline">查看全部课表</a>
-          <a href="{{ url_for('device_index') }}" class="btn-outline">打开 AI 终端</a>
+          <a href="{{ url_for('device_index') }}" class="btn-outline">打开 CST 终端</a>
+          <a href="{{ url_for('ai_chat_page') }}" class="btn-outline">AI 陪伴</a>
         </div>
       </div>
 
@@ -124,7 +125,7 @@
           <p class="stat-note">主题歌：{{ cst.profile.theme_song }}</p>
         </article>
         <article class="stat-card">
-          <span class="stat-label">AI 终端</span>
+          <span class="stat-label">CST 终端</span>
           <strong class="stat-value {{ 'stat-ok' if device else '' }}">{{ '在线' if device and device.is_online else '未绑定' }}</strong>
           <p class="stat-note"><a href="{{ url_for('device_index') }}" class="inline-link">管理设备</a></p>
         </article>

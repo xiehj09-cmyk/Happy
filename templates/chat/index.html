@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}AI 陪伴 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content">
+    <section class="page-hero compact">
+      <div>
+        <p class="welcome-kicker">温和闲聊 · 与 CST 练习分开</p>
+        <h1>AI 陪伴</h1>
+        <p class="welcome-desc">
+          在这里随便聊聊心情、天气或回忆。不做课程引导。
+          若要做主题练习，请去
+          <a href="{{ url_for('device_index') }}" class="inline-link">CST 终端</a>。
+        </p>
+      </div>
+      <aside class="hero-stats">
+        <article class="stat-card">
+          <span class="stat-label">模式</span>
+          <strong class="stat-value stat-text">陪伴聊天</strong>
+          <p class="stat-note">短句 · 慢慢来</p>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">模型</span>
+          <strong class="stat-value {{ 'stat-ok' if companion_enabled else '' }}">{{ '已就绪' if companion_enabled else '未配置' }}</strong>
+          <p class="stat-note">DeepSeek</p>
+        </article>
+      </aside>
+    </section>
+
+    <div class="page-grid companion-grid">
+      <section
+        class="panel chat-panel companion-chat-panel"
+        id="ai-chat-app"
+        data-chat-url="{{ url_for('api_companion_chat') }}"
+        data-enabled="{{ '1' if companion_enabled else '0' }}"
+        data-opening="您好，我是记忆港湾的陪伴助手。今天想聊点什么？慢慢说就好。">
+        <header class="panel-header compact">
+          <div>
+            <h2>和 AI 说说话</h2>
+            <p>轻松陪伴，不是考试，也不是医嘱。</p>
+          </div>
+          <button type="button" class="btn-ghost" id="ai-chat-reset">清空对话</button>
+        </header>
+
+        {% if not companion_enabled %}
+        <p class="ai-disclaimer">尚未配置 DEEPSEEK_API_KEY，暂时无法聊天。请管理员在环境变量中配置后刷新。</p>
+        {% else %}
+        <p class="ai-disclaimer">陪伴聊天仅供参考，不能替代医生面诊与处方。</p>
+        {% endif %}
+
+        <div class="chat-compose">
+          <div class="chat-log" id="ai-chat-log" role="log" aria-live="polite"></div>
+          <form class="chat-input-row" id="ai-chat-form">
+            <label class="sr-only" for="ai-chat-input">您想说的话</label>
+            <input
+              type="text"
+              id="ai-chat-input"
+              maxlength="500"
+              placeholder="例如：今天天气不错，我想出去走走…"
+              autocomplete="off"
+              {% if not companion_enabled %}disabled{% endif %}
+            />
+            <button type="submit" class="btn-primary btn-inline" id="ai-chat-send" {% if not companion_enabled %}disabled{% endif %}>发送</button>
+          </form>
+          <p class="chat-hint">一次说一件事就好。需要用药或任务帮助时，可用右下角「需要帮助？」。</p>
+        </div>
+      </section>
+
+      <aside class="side-stack">
+        <section class="panel">
+          <header class="panel-header compact"><div><h2>可以这样开始</h2></div></header>
+          <div class="companion-quick">
+            <button type="button" class="companion-chip" data-prompt="今天天气怎么样，适合出门吗？">聊聊天气</button>
+            <button type="button" class="companion-chip" data-prompt="我想回忆一下以前住的地方。">聊聊回忆</button>
+            <button type="button" class="companion-chip" data-prompt="我有点无聊，陪我随便聊两句吧。">随便聊聊</button>
+            <button type="button" class="companion-chip" data-prompt="今天心情一般，听我说说话好吗？">说说心情</button>
+          </div>
+        </section>
+        <section class="panel">
+          <header class="panel-header compact"><div><h2>和 CST 的区别</h2></div></header>
+          <ul class="tips-list">
+            <li><strong>AI 陪伴</strong>：自由闲聊，话题轻松。</li>
+            <li><strong>CST 终端</strong>：按课程主题看图说话，有引导节奏。</li>
+            <li>右下角帮助助手：管用药与任务，不是闲聊。</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
+{% endblock %}

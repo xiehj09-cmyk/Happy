@@ -13,7 +13,8 @@
       <a href="{{ url_for('dashboard') }}" class="{{ 'is-active' if active == 'dashboard' else '' }}">首页</a>
       {% if role != 'family' %}
       <a href="{{ url_for('cst_index') }}" class="{{ 'is-active' if active == 'cst' else '' }}">记忆练习</a>
-      <a href="{{ url_for('device_index') }}" class="{{ 'is-active' if active == 'device' else '' }}">AI 终端</a>
+      <a href="{{ url_for('device_index') }}" class="{{ 'is-active' if active == 'device' else '' }}">CST 终端</a>
+      <a href="{{ url_for('ai_chat_page') }}" class="{{ 'is-active' if active == 'ai_chat' else '' }}">AI 陪伴</a>
       {% endif %}
       <a href="{{ url_for('tasks_page') }}" class="{{ 'is-active' if active == 'tasks' else '' }}">任务清单</a>
       <a href="{{ url_for('medication') }}" class="{{ 'is-active' if active == 'medication' else '' }}">用药管理</a>

@@ -55,6 +55,7 @@ from baidu_speech_service import (
     synthesize_speech,
 )
 from config import DEBUG, HOST, MCP_API_TOKEN, MCP_ELDER_USER_ID, PORT, SECRET_KEY, THREADS
+from companion_service import run_companion_chat
 from med_ai_service import deepseek_configured, process_smart_add
 from mcp_user_service import (
     bind_xiaozhi_user,
@@ -431,7 +432,7 @@ def dashboard():
                 {
                     "time": "建议上午",
                     "title": f"第 {cst['current_num']} 次 CST · {cst['current_title']}",
-                    "note": "45 分钟认知刺激疗程，可在网页或 AI 终端完成",
+                    "note": "45 分钟认知刺激疗程，可在网页或 CST 终端完成",
                     "url": url_for("cst_session", session_num=cst["current_num"]),
                 },
                 {
@@ -519,11 +520,18 @@ def dashboard():
             "url": url_for("tasks_page"),
         },
         {
-            "title": "AI 终端",
-            "desc": "绑定硬件后由 AI 引导员按 CST 脚本主持当堂课程，会话记录同步回本站。",
+            "title": "CST 终端",
+            "desc": "按当次课程主题看图说话，AI 引导员主持练习。",
             "icon": "ai",
             "status": "可用" if device else "待绑定",
             "url": url_for("device_index"),
+        },
+        {
+            "title": "AI 陪伴",
+            "desc": "轻松闲聊心情与回忆，与 CST 课程练习分开。",
+            "icon": "brain",
+            "status": "可用" if deepseek_configured() else "待配置",
+            "url": url_for("ai_chat_page"),
         },
         {
             "title": "用药管理",
@@ -564,9 +572,9 @@ def dashboard():
 
 
 def _redirect_family_from_elder_modules():
-    """家属端不提供 CST / AI 终端等老人训练模块。"""
+    """家属端不提供 CST / AI 陪伴等老人训练模块。"""
     if session.get("role") == ROLE_FAMILY:
-        flash("记忆练习与 AI 终端请在老人账号中使用。家属端可查看进度，并管理任务、用药与安全。", "info")
+        flash("记忆练习、CST 终端与 AI 陪伴请在老人账号中使用。家属端可查看进度，并管理任务、用药与安全。", "info")
         return redirect(url_for("dashboard"))
     return None
 
@@ -1122,7 +1130,7 @@ def device_index():
         action = request.form.get("action", "bind")
         if action == "bind":
             code = (request.form.get("device_code") or "").strip() or "MH-AI-001"
-            name = (request.form.get("device_name") or "").strip() or "记忆港湾 AI 终端"
+            name = (request.form.get("device_name") or "").strip() or "记忆港湾 CST 终端"
             if device:
                 db.execute(
                     """
@@ -1142,11 +1150,11 @@ def device_index():
                     (effective_care_user_id(), name, code),
                 )
             db.commit()
-            flash("AI 终端已绑定并标记为在线。", "success")
+            flash("CST 终端已绑定并标记为在线。", "success")
         elif action == "unbind":
             db.execute("DELETE FROM device_binding WHERE user_id = ?", (effective_care_user_id(),))
             db.commit()
-            flash("已解绑 AI 终端。", "success")
+            flash("已解绑 CST 终端。", "success")
         return redirect(url_for("device_index"))
 
     current_session = get_session(cst["current_num"])
@@ -1165,6 +1173,38 @@ def device_index():
         ai_system_prompt=build_session_system_prompt(current_session) if current_session else "",
         ai_opening=ai_opening,
     )
+
+
+@app.route("/ai-chat")
+@login_required
+def ai_chat_page():
+    """独立 AI 陪伴闲聊（与 CST 主题引导分离）。"""
+    blocked = _redirect_family_from_elder_modules()
+    if blocked:
+        return blocked
+    return render_dashboard(
+        "chat/index.html",
+        "ai_chat",
+        companion_enabled=deepseek_configured(),
+    )
+
+
+@app.route("/api/companion/chat", methods=["POST"])
+@login_required
+def api_companion_chat():
+    blocked = _redirect_family_from_elder_modules()
+    if blocked:
+        return jsonify({"ok": False, "reply": "请使用老人账号进行陪伴聊天。"}), 403
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    history = data.get("history") if isinstance(data.get("history"), list) else []
+    result = run_companion_chat(
+        message=message,
+        username=session.get("username") or "",
+        history=history,
+    )
+    status = 200 if result.get("ok") else 400
+    return jsonify(result), status
 
 
 @app.route("/api/device/script")

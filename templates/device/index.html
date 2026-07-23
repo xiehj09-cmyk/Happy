@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}AI 终端 · 记忆港湾{% endblock %}
+{% block title %}CST 终端 · 记忆港湾{% endblock %}
 {% block body_class %}home-body{% endblock %}
 
 {% block head %}
@@ -14,11 +14,12 @@
   <main class="home-content page-content">
     <section class="page-hero compact">
       <div>
-        <p class="welcome-kicker">AI 终端 · CST 引导员</p>
-        <h1>主题化认知刺激对话</h1>
+        <p class="welcome-kicker">CST 认知刺激 · 主题引导</p>
+        <h1>CST 练习终端</h1>
         <p class="welcome-desc">
-          AI 只围绕当次 CST 主题展开「看图说话、词语联想、温和讨论」，不跑题、不闲聊。
-          下方为网页演示；正式使用时硬件调用相同 <code>system_prompt</code> 与图卡脚本。
+          专用于当次 CST 主题的看图说话与温和引导，不做闲聊。
+          想随便聊聊请用
+          <a href="{{ url_for('ai_chat_page') }}" class="inline-link">AI 陪伴</a>。
         </p>
       </div>
       <aside class="hero-stats">
@@ -35,30 +36,31 @@
     </section>
 
     <div class="page-grid chat-grid">
-      <section class="panel chat-panel" id="cst-chat-app"
+      <section class="panel chat-panel cst-chat-panel" id="cst-chat-app"
         data-session-num="{{ cst.current_num }}"
         data-opening={{ ai_opening|tojson }}
         data-chat-url="{{ url_for('api_device_chat') }}">
         <header class="panel-header compact">
           <div>
             <h2>CST 对话练习</h2>
-            <p>第 {{ cst.current_num }} 次 · {{ cst.current_title }} · 图文引导模式</p>
+            <p>第 {{ cst.current_num }} 次 · {{ cst.current_title }}</p>
           </div>
           <button type="button" class="btn-ghost" id="chat-reset">重新开始</button>
         </header>
 
         <div class="visual-stage" id="visual-stage" aria-live="polite">
-          <p class="visual-placeholder">图卡将随 AI 引导在此展示</p>
+          <p class="visual-placeholder">图卡将随引导在此展示</p>
         </div>
 
-        <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
-
-        <form class="chat-input-row" id="chat-form">
-          <label class="sr-only" for="chat-input">您的回答</label>
-          <input type="text" id="chat-input" placeholder="输入您想说的话，或描述您看到的图…" autocomplete="off" />
-          <button type="submit" class="btn-primary btn-inline">发送</button>
-        </form>
-        <p class="chat-hint">提示：AI 会按 CST 图卡顺序引导；回答没有对错，慢慢说即可。</p>
+        <div class="chat-compose">
+          <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+          <form class="chat-input-row" id="chat-form">
+            <label class="sr-only" for="chat-input">您的回答</label>
+            <input type="text" id="chat-input" placeholder="描述您看到的图，或回答引导员…" autocomplete="off" />
+            <button type="submit" class="btn-primary btn-inline">发送</button>
+          </form>
+          <p class="chat-hint">回答没有对错，慢慢说即可。闲聊请前往「AI 陪伴」。</p>
+        </div>
       </section>
 
       <aside class="side-stack">
@@ -82,11 +84,6 @@
         </section>
 
         <section class="panel">
-          <header class="panel-header compact"><div><h2>AI 主题约束</h2></div></header>
-          <pre class="prompt-box">{{ ai_system_prompt }}</pre>
-        </section>
-
-        <section class="panel">
           <header class="panel-header compact"><div><h2>设备绑定</h2></div></header>
           {% if device %}
           <p class="stat-note">已绑定 {{ device.device_name }}（{{ device.device_code }}）</p>
@@ -103,6 +100,11 @@
           {% endif %}
           <p class="stat-note">脚本 API：<code class="api-snippet inline">{{ url_for('api_device_script', _external=True) }}</code></p>
         </section>
+
+        <details class="panel prompt-details">
+          <summary>AI 主题约束（进阶）</summary>
+          <pre class="prompt-box">{{ ai_system_prompt }}</pre>
+        </details>
       </aside>
     </div>
 
