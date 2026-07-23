@@ -1,0 +1,14 @@
+# 小智 MCP 桥接 · Zeabur 服务名请设为 mcp（自动匹配本文件）
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY xiaozhi-mcp/package.json ./
+RUN npm install --omit=dev
+
+COPY xiaozhi-mcp/custom-mcp.js xiaozhi-mcp/mcp-config.json xiaozhi-mcp/start-with-env.js ./
+RUN mkdir -p /app/data
+
+ENV NODE_ENV=production
+
+CMD ["node", "start-with-env.js"]

@@ -1,0 +1,134 @@
+# yaml-language-server: $schema=https://schema.zeabur.app/template.json
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: MemoryHarbor
+spec:
+  description: |
+    记忆港湾：官网 (Flask) + 小智 MCP 桥接双服务。
+  icon: https://raw.githubusercontent.com/xiehj09-cmyk/Happy/main/static/img/landing-hero.png
+  tags:
+    - Healthcare
+    - AI
+  variables:
+    - key: PUBLIC_DOMAIN
+      type: DOMAIN
+      name: Domain
+      description: 官网要绑定的域名（可生成 *.zeabur.app）
+    - key: MCP_API_TOKEN
+      type: STRING
+      name: MCP Bridge Token
+      description: 官网与 MCP 共用的桥接 Token（请设为随机长字符串）
+    - key: XIAOZHI_MCP_ENDPOINT
+      type: STRING
+      name: Xiaozhi MCP Endpoint
+      description: 小智控制台的 wss://api.xiaozhi.me/mcp/?token=... 接入点
+    - key: SECRET_KEY
+      type: STRING
+      name: Flask Secret Key
+      description: 网站 Session 密钥（随机长字符串）
+  readme: |-
+    # 记忆港湾 · Zeabur
+
+    部署后请在官网工作台「小智账号绑定」手动填写 UserId。
+
+    ## 环境变量
+
+    - `MCP_API_TOKEN`：官网与 MCP 必须一致
+    - `XIAOZHI_MCP_ENDPOINT`：小智 WebSocket 接入点
+    - 可选：`DEEPSEEK_API_KEY`、`BAIDU_API_KEY`、`BAIDU_SECRET_KEY`
+
+    ## 数据卷
+
+    - web：`/app/instance`（SQLite）
+    - mcp：`/app/data`（语音事项 txt）
+  services:
+    - name: web
+      icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/python.svg
+      template: GIT
+      domainKey: PUBLIC_DOMAIN
+      spec:
+        source:
+          type: GITHUB
+          id: 1308472118
+          branch: main
+        ports:
+          - id: web
+            port: 8080
+            type: HTTP
+        volumes:
+          - id: web-instance
+            dir: /app/instance
+        env:
+          HOST:
+            default: "0.0.0.0"
+          PORT:
+            default: "8080"
+          FLASK_DEBUG:
+            default: "0"
+          SECRET_KEY:
+            default: ${SECRET_KEY}
+          MCP_API_TOKEN:
+            default: ${MCP_API_TOKEN}
+            expose: true
+          MCP_API_BASE:
+            default: http://${CONTAINER_HOSTNAME}:${PORT}
+            expose: true
+          WEB_INTERNAL_URL:
+            default: http://${CONTAINER_HOSTNAME}:${PORT}
+            expose: true
+          WEB_HOST:
+            default: ${CONTAINER_HOSTNAME}
+            expose: true
+            readonly: true
+
+    - name: mcp
+      icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/nodejs.svg
+      template: GIT
+      dependencies:
+        - web
+      spec:
+        source:
+          type: GITHUB
+          id: 1308472118
+          branch: main
+        volumes:
+          - id: mcp-notes
+            dir: /app/data
+        env:
+          WEBSITE_BASE:
+            default: ${WEB_INTERNAL_URL}
+          WEBSITE_MCP_TOKEN:
+            default: ${MCP_API_TOKEN}
+          MCP_API_TOKEN:
+            default: ${MCP_API_TOKEN}
+          XIAOZHI_MCP_ENDPOINT:
+            default: ${XIAOZHI_MCP_ENDPOINT}
+
+localization:
+  zh-CN:
+    description: 记忆港湾双服务：官网 + 小智 MCP 桥接
+    variables:
+      - key: PUBLIC_DOMAIN
+        type: DOMAIN
+        name: 域名
+        description: 官网域名（可生成 *.zeabur.app）
+      - key: MCP_API_TOKEN
+        type: STRING
+        name: MCP 桥接 Token
+        description: 官网与 MCP 共用，请使用随机长字符串
+      - key: XIAOZHI_MCP_ENDPOINT
+        type: STRING
+        name: 小智 MCP 接入点
+        description: wss://api.xiaozhi.me/mcp/?token=...
+      - key: SECRET_KEY
+        type: STRING
+        name: 网站密钥
+        description: Flask Session 密钥
+    readme: |-
+      # 记忆港湾
+
+      1. 部署完成后打开官网域名
+      2. 注册/登录老人账号
+      3. 在工作台「小智账号绑定」填写小智 UserId
+      4. 确认 MCP 服务 Running，并在小智控制台看到工具

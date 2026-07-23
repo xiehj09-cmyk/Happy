@@ -11,7 +11,11 @@ xiaozhi-mcp
 *.md
 .dockerignore
 Dockerfile
+Dockerfile.web
+Dockerfile.mcp
 docker-compose*.yml
 .env.docker.example
 DOCKER.md
+ZEABUR.md
+zeabur.yaml
 .cursor
