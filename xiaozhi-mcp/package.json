@@ -1,0 +1,12 @@
+{
+  "name": "xiaozhi-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "将本机 MCP 工具挂载到小智 AI 官方接入点",
+  "scripts": {
+    "xiaozhi": "node ./start-with-env.js"
+  },
+  "dependencies": {
+    "mcp_exe": "^1.0.0"
+  }
+}

@@ -6,3 +6,7 @@ instance/
 *.db
 .env
 .DS_Store
+xiaozhi-mcp/node_modules/
+xiaozhi-mcp/.env
+xiaozhi-mcp/package-lock.json
+xiaozhi-mcp/data/voice_notes.txt

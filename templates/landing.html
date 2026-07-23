@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>记忆港湾 · 阿尔茨海默病居家关怀</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}" />
+</head>
+<body class="landing-body">
+  <header class="landing-header">
+    <div class="landing-header-inner">
+      <a class="landing-brand" href="{{ url_for('landing') }}">
+        <span class="landing-brand-mark">记忆港湾</span>
+        <span class="landing-brand-sub">居家关怀</span>
+      </a>
+      <nav class="landing-nav" aria-label="页面导航">
+        <a href="#about">了解我们</a>
+        <a href="#care">关怀方式</a>
+        <a href="#contact">联系</a>
+      </nav>
+      <div class="landing-header-actions">
+        {% if logged_in %}
+        <a class="landing-btn landing-btn-primary" href="{{ url_for('dashboard') }}">进入工作台</a>
+        {% else %}
+        <a class="landing-btn landing-btn-ghost" href="{{ url_for('register') }}">注册</a>
+        <a class="landing-btn landing-btn-primary" href="{{ url_for('login') }}">登录</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="landing-hero">
+      <div class="landing-hero-copy">
+        <p class="landing-kicker">阿尔茨海默病 · 居家照护</p>
+        <h1>陪您慢慢走，把每一天过得更安心</h1>
+        <p class="landing-lead">
+          记忆港湾为轻中度记忆力下降的长者与家属提供温和陪伴：记忆练习、用药提醒、日常任务与安全守护，都在一个简洁的地方。
+        </p>
+        <div class="landing-hero-actions">
+          {% if logged_in %}
+          <a class="landing-btn landing-btn-primary landing-btn-lg" href="{{ url_for('dashboard') }}">进入工作台</a>
+          {% else %}
+          <a class="landing-btn landing-btn-primary landing-btn-lg" href="{{ url_for('login') }}">登录账号</a>
+          <a class="landing-btn landing-btn-ghost landing-btn-lg" href="{{ url_for('register') }}">免费注册</a>
+          {% endif %}
+        </div>
+      </div>
+      <figure class="landing-hero-media">
+        <img
+          src="{{ url_for('static', filename='img/landing-hero.png') }}"
+          alt="安静明亮的居家空间，绿色点缀，象征安心陪伴"
+          width="960"
+          height="540"
+          loading="eager"
+        />
+      </figure>
+    </section>
+
+    <section class="landing-section" id="about">
+      <header class="landing-section-head">
+        <h2>我们是谁</h2>
+        <p>用简单的话、清晰的界面，帮助家人一起面对记忆力下降。</p>
+      </header>
+      <div class="landing-cards">
+        <article class="landing-card">
+          <h3>对长者温柔</h3>
+          <p>大字号、慢节奏、一次一件事。没有考试感，说出来就很好。</p>
+        </article>
+        <article class="landing-card">
+          <h3>对家属清晰</h3>
+          <p>用药、任务、安全一眼能看懂。训练进度可查看，不用挤进训练界面。</p>
+        </article>
+        <article class="landing-card">
+          <h3>居家也能做</h3>
+          <p>网页即可使用，也可配合 AI 终端。重要的是陪伴，不是堆砌功能。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt" id="care">
+      <header class="landing-section-head">
+        <h2>关怀方式</h2>
+        <p>四件最常用的事，白色卡片、绿色点缀，尽量简单。</p>
+      </header>
+      <ul class="landing-feature-list">
+        <li>
+          <strong>记忆小练习</strong>
+          <span>温和的认知刺激课程，鼓励表达与参与。</span>
+        </li>
+        <li>
+          <strong>用药管理</strong>
+          <span>清单、提醒与服药记录，方便家人核对。</span>
+        </li>
+        <li>
+          <strong>任务清单</strong>
+          <span>把复杂事情拆成小步骤，一次只看当前一步。</span>
+        </li>
+        <li>
+          <strong>安全监护</strong>
+          <span>关注异常告警，先把安全放在心里。</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="landing-cta" id="contact">
+      <div class="landing-cta-inner">
+        <h2>准备好了，就从登录开始</h2>
+        <p>老人账号与家属账号分开登录，各自看到适合自己的界面。</p>
+        <a class="landing-btn landing-btn-primary landing-btn-lg" href="{{ url_for('login') }}">前往登录</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="landing-footer">
+    <p>记忆港湾 · 本站用于居家照护辅助，不能替代医生面诊与处方。</p>
+  </footer>
+</body>
+</html>

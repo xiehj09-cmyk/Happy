@@ -112,8 +112,14 @@
     var(--panel);
 }
 
-.family-progress-panel {
-  margin-top: 0.25rem;
+.task-item.is-done strong {
+  text-decoration: line-through;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.voice-matters-panel .task-item time {
+  color: var(--teal-deep);
 }
 
 .family-session-progress {

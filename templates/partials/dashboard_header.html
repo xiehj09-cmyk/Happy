@@ -10,7 +10,7 @@
     </div>
 
     <nav class="home-nav" aria-label="主导航">
-      <a href="{{ url_for('index') }}" class="{{ 'is-active' if active == 'index' else '' }}">首页</a>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'is-active' if active == 'dashboard' else '' }}">首页</a>
       {% if role != 'family' %}
       <a href="{{ url_for('cst_index') }}" class="{{ 'is-active' if active == 'cst' else '' }}">记忆练习</a>
       <a href="{{ url_for('device_index') }}" class="{{ 'is-active' if active == 'device' else '' }}">AI 终端</a>

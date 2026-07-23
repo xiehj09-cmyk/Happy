@@ -47,7 +47,7 @@
 
       <div class="page-actions">
         <a href="{{ url_for('training') }}" class="btn-primary btn-inline">再练一组</a>
-        <a href="{{ url_for('index') }}" class="btn-outline">返回首页</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-outline">返回首页</a>
       </div>
     </section>
     {% else %}
@@ -111,7 +111,7 @@
 
       <div class="page-actions">
         <button type="submit" class="btn-primary btn-inline">提交答卷</button>
-        <a href="{{ url_for('index') }}" class="btn-outline">返回首页</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-outline">返回首页</a>
       </div>
     </form>
     {% endif %}

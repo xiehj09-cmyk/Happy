@@ -53,8 +53,14 @@ from baidu_speech_service import (
     recognize_speech,
     synthesize_speech,
 )
-from config import DEBUG, HOST, PORT, SECRET_KEY, THREADS
+from config import DEBUG, HOST, MCP_API_TOKEN, MCP_ELDER_USER_ID, PORT, SECRET_KEY, THREADS
 from med_ai_service import deepseek_configured, process_smart_add
+from voice_matter_service import (
+    add_matter,
+    complete_matter,
+    ensure_voice_matter_tables,
+    list_matters,
+)
 from medication_service import (
     PLACE_OPTIONS,
     STATUS_PROXY,
@@ -138,6 +144,7 @@ def init_db() -> None:
     ensure_practice_tables(db)
     ensure_medication_tables(db)
     ensure_task_tables(db)
+    ensure_voice_matter_tables(db)
 
 
 def login_required(view):
@@ -149,6 +156,40 @@ def login_required(view):
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def mcp_token_required(view):
+    """小智 MCP 本机桥接鉴权：Authorization Bearer 或 X-MCP-Token。"""
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not MCP_API_TOKEN:
+            return jsonify({"ok": False, "error": "未配置 MCP_API_TOKEN"}), 503
+        auth = request.headers.get("Authorization") or ""
+        token = ""
+        if auth.lower().startswith("bearer "):
+            token = auth[7:].strip()
+        if not token:
+            token = (request.headers.get("X-MCP-Token") or "").strip()
+        if token != MCP_API_TOKEN:
+            return jsonify({"ok": False, "error": "MCP Token 无效"}), 401
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def resolve_mcp_elder_id(db: sqlite3.Connection) -> int | None:
+    if MCP_ELDER_USER_ID:
+        row = db.execute(
+            "SELECT id FROM users WHERE id = ? AND role = ?",
+            (MCP_ELDER_USER_ID, ROLE_ELDER),
+        ).fetchone()
+        return int(row["id"]) if row else None
+    row = db.execute(
+        "SELECT id FROM users WHERE role = ? ORDER BY id ASC LIMIT 1",
+        (ROLE_ELDER,),
+    ).fetchone()
+    return int(row["id"]) if row else None
 
 
 def load_current_user():
@@ -204,7 +245,18 @@ def inject_workspace_assistant():
 @app.before_request
 def ensure_db_and_protect():
     init_db()
-    open_endpoints = {"login", "register", "forgot_password", "static"}
+    open_endpoints = {
+        "landing",
+        "login",
+        "register",
+        "forgot_password",
+        "static",
+        "api_mcp_matters_create",
+        "api_mcp_matters_list",
+        "api_mcp_matters_complete",
+        "api_mcp_meds_today",
+        "api_mcp_meds_taken",
+    }
     if request.endpoint in open_endpoints or request.endpoint is None:
         return None
     if not session.get("user_id"):
@@ -252,8 +304,17 @@ def _cst_context(user_id: int) -> dict:
 
 
 @app.route("/")
+def landing():
+    """公开展示首页（无需登录），登录按钮进入原登录页。"""
+    return render_template(
+        "landing.html",
+        logged_in=bool(session.get("user_id")),
+    )
+
+
+@app.route("/dashboard")
 @login_required
-def index():
+def dashboard():
     user = load_current_user()
     elder_id = effective_care_user_id()
     role = session.get("role", ROLE_ELDER)
@@ -355,15 +416,17 @@ def index():
             "safety_ok": True,
             "safety_label": "正常",
         }
+        voice_matters = list_matters(db, elder_id, status=None, limit=15)
         return render_dashboard(
             "index.html",
-            "index",
+            "dashboard",
             cst=cst,
             device=None,
             modules=modules,
             today_tasks=today_tasks,
             ro=None,
             care_stats=care_stats,
+            voice_matters=voice_matters,
         )
 
     modules = [
@@ -405,13 +468,14 @@ def index():
     ]
     return render_dashboard(
         "index.html",
-        "index",
+        "dashboard",
         cst=cst,
         device=device,
         modules=modules,
         today_tasks=today_tasks,
         ro=reality_orientation_context(),
         care_stats=None,
+        voice_matters=list_matters(db, elder_id, status=None, limit=15),
     )
 
 
@@ -419,7 +483,7 @@ def _redirect_family_from_elder_modules():
     """家属端不提供 CST / AI 终端等老人训练模块。"""
     if session.get("role") == ROLE_FAMILY:
         flash("记忆练习与 AI 终端请在老人账号中使用。家属端可查看进度，并管理任务、用药与安全。", "info")
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard"))
     return None
 
 
@@ -632,6 +696,147 @@ def api_speech_evaluate():
     text = str(data.get("text") or "")
     result = evaluate_soft_answer(text, question)
     return jsonify({"ok": True, **result})
+
+
+# —— 小智 MCP 桥接 API（Token 鉴权，供本机 mcp_exe 调用）——
+
+
+@app.route("/api/mcp/matters", methods=["POST"])
+@mcp_token_required
+def api_mcp_matters_create():
+    """语音录入事项 → 同步写入网站。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号，请配置 MCP_ELDER_USER_ID"}), 400
+    data = request.get_json(silent=True) or {}
+    text = str(data.get("text") or data.get("body") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "事项内容不能为空"}), 400
+    try:
+        matter = add_matter(db, elder_id, text, source="xiaozhi")
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({"ok": True, "matter": matter})
+
+
+@app.route("/api/mcp/matters", methods=["GET"])
+@mcp_token_required
+def api_mcp_matters_list():
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+    status = request.args.get("status")
+    if status == "all":
+        status = None
+    keyword = request.args.get("keyword") or ""
+    limit = request.args.get("limit", type=int) or 20
+    items = list_matters(db, elder_id, status=status, keyword=keyword or None, limit=limit)
+    return jsonify({"ok": True, "matters": items, "count": len(items)})
+
+
+@app.route("/api/mcp/matters/complete", methods=["POST"])
+@mcp_token_required
+def api_mcp_matters_complete():
+    """老人完成事项后，同步修改网站状态为已完成。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+    data = request.get_json(silent=True) or {}
+    matter_id = data.get("matter_id") or data.get("id")
+    keyword = str(data.get("keyword") or data.get("text") or "").strip()
+    mid = int(matter_id) if matter_id not in (None, "") else None
+    matter = complete_matter(db, elder_id, matter_id=mid, keyword=keyword or None)
+    if not matter:
+        return jsonify({"ok": False, "error": "未找到可完成的事项"}), 404
+    return jsonify({"ok": True, "matter": matter})
+
+
+@app.route("/api/mcp/medication/today", methods=["GET"])
+@mcp_token_required
+def api_mcp_meds_today():
+    """今日要吃什么药 → 读取网站用药计划。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+    plan = today_plan(db, elder_id)
+    pending = [p for p in plan if p.get("pending")]
+    summary = adherence_summary(db, elder_id)
+    lines = []
+    for p in plan:
+        name = p.get("display_name") or p.get("name") or "药品"
+        dose = p.get("dose") or ""
+        st = p.get("status_label") or p.get("status") or ""
+        tm = p.get("time") or p.get("schedule_time") or ""
+        lines.append(f"{tm} {name} {dose}（{st}）".strip())
+    speak = "今天没有安排用药。" if not plan else "今天的药有：" + "；".join(lines)
+    if pending:
+        speak += "。其中还没吃的有：" + "、".join(
+            (x.get("display_name") or x.get("name") or "药") for x in pending
+        )
+    elif plan:
+        speak += "。目前该吃的都已记录完成。"
+    return jsonify(
+        {
+            "ok": True,
+            "plan": plan,
+            "pending": pending,
+            "summary": summary,
+            "speak": speak,
+        }
+    )
+
+
+@app.route("/api/mcp/medication/taken", methods=["POST"])
+@mcp_token_required
+def api_mcp_meds_taken():
+    """老人说「我吃过了」→ 按药名匹配并标记已服用。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or data.get("keyword") or data.get("text") or "").strip()
+    med_id = data.get("medication_id") or data.get("med_id")
+    plan = today_plan(db, elder_id)
+    target = None
+    if med_id:
+        target = next((p for p in plan if int(p.get("id") or 0) == int(med_id)), None)
+    elif name:
+        for p in plan:
+            label = f"{p.get('display_name') or ''}{p.get('name') or ''}{p.get('alias') or ''}"
+            if name in label or (p.get("name") and p.get("name") in name):
+                target = p
+                break
+            # 软匹配
+            body = label
+            i = 0
+            for ch in body:
+                if i < len(name) and ch == name[i]:
+                    i += 1
+                if i >= len(name):
+                    target = p
+                    break
+            if target:
+                break
+    if not target:
+        return jsonify({"ok": False, "error": f"未找到匹配的今日药品：{name or med_id}"}), 404
+    ok = record_medication_status(
+        db, int(target["id"]), elder_id, STATUS_TAKEN, recorded_by=elder_id
+    )
+    if not ok:
+        return jsonify({"ok": False, "error": "记录服药失败"}), 500
+    med_name = target.get("display_name") or target.get("name") or "这药"
+    return jsonify(
+        {
+            "ok": True,
+            "medication": target,
+            "speak": f"好的，已在网站记下「{med_name}」今天服用过了。",
+        }
+    )
 
 
 @app.route("/api/cst/session/<int:session_num>/card-speak", methods=["POST"])
@@ -1480,7 +1685,7 @@ def safety():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("user_id"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard"))
     login_role = (request.form.get("role") or request.args.get("role") or ROLE_ELDER).strip()
     if login_role not in VALID_ROLES:
         login_role = ROLE_ELDER
@@ -1520,14 +1725,14 @@ def login():
         next_url = request.args.get("next")
         if next_url and next_url.startswith("/"):
             return redirect(next_url)
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard"))
     return render_template("login.html", username=username, role=login_role)
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if session.get("user_id"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard"))
     role = (request.form.get("role") or request.args.get("role") or ROLE_FAMILY).strip()
     if role not in VALID_ROLES:
         role = ROLE_FAMILY
@@ -1638,7 +1843,7 @@ def register():
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if session.get("user_id"):
-        return redirect(url_for("index"))
+        return redirect(url_for("dashboard"))
     form = {"username": (request.form.get("username") or "").strip(), "email": (request.form.get("email") or "").strip(), "verified": False}
     if request.method == "POST":
         action = request.form.get("action") or "verify"
@@ -1674,7 +1879,7 @@ def forgot_password():
 def logout():
     session.clear()
     flash("您已安全退出。", "success")
-    return redirect(url_for("login"))
+    return redirect(url_for("landing"))
 
 
 if __name__ == "__main__":
