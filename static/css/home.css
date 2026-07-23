@@ -122,6 +122,35 @@
   color: var(--teal-deep);
 }
 
+.mcp-token-panel .mcp-token-value {
+  display: block;
+  margin: 0.6rem 0;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.mcp-token-actions {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.mcp-bind-form {
+  margin-top: 0.75rem;
+}
+
+.mcp-token-advanced {
+  margin-top: 1rem;
+  color: var(--ink-soft);
+}
+
+.mcp-token-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.inline-unbind {
+  margin-top: 0.35rem;
+}
+
 .family-session-progress {
   list-style: none;
   margin: 0;

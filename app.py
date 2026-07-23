@@ -55,6 +55,15 @@ from baidu_speech_service import (
 )
 from config import DEBUG, HOST, MCP_API_TOKEN, MCP_ELDER_USER_ID, PORT, SECRET_KEY, THREADS
 from med_ai_service import deepseek_configured, process_smart_add
+from mcp_user_service import (
+    bind_xiaozhi_user,
+    ensure_mcp_user_schema,
+    ensure_user_mcp_token,
+    list_xiaozhi_links_for_elder,
+    resolve_mcp_identity,
+    rotate_user_mcp_token,
+    unbind_xiaozhi_user,
+)
 from voice_matter_service import (
     add_matter,
     complete_matter,
@@ -140,6 +149,7 @@ def close_db(_exc: BaseException | None = None) -> None:
 def init_db() -> None:
     db = get_db()
     ensure_user_auth_schema(db)
+    ensure_mcp_user_schema(db)
     ensure_cst_tables(db)
     ensure_practice_tables(db)
     ensure_medication_tables(db)
@@ -158,27 +168,72 @@ def login_required(view):
     return wrapped
 
 
+def _extract_mcp_bearer() -> str:
+    auth = request.headers.get("Authorization") or ""
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return (request.headers.get("X-MCP-Token") or "").strip()
+
+
 def mcp_token_required(view):
-    """小智 MCP 本机桥接鉴权：Authorization Bearer 或 X-MCP-Token。"""
+    """MCP 鉴权：个人 mcp_token，或全局 Token + 已手动绑定的小智 UserId。"""
 
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not MCP_API_TOKEN:
-            return jsonify({"ok": False, "error": "未配置 MCP_API_TOKEN"}), 503
-        auth = request.headers.get("Authorization") or ""
-        token = ""
-        if auth.lower().startswith("bearer "):
-            token = auth[7:].strip()
+        db = get_db()
+        token = _extract_mcp_bearer()
         if not token:
-            token = (request.headers.get("X-MCP-Token") or "").strip()
-        if token != MCP_API_TOKEN:
-            return jsonify({"ok": False, "error": "MCP Token 无效"}), 401
+            return jsonify({"ok": False, "error": "缺少 MCP Token"}), 401
+        xiaozhi_user_id = (
+            request.headers.get("X-Xiaozhi-User-Id")
+            or request.args.get("xiaozhi_user_id")
+            or ""
+        ).strip()
+        xiaozhi_agent_id = (
+            request.headers.get("X-Xiaozhi-Agent-Id")
+            or request.args.get("xiaozhi_agent_id")
+            or ""
+        ).strip()
+        if request.method in ("POST", "PUT", "PATCH"):
+            body = request.get_json(silent=True)
+            if isinstance(body, dict):
+                xiaozhi_user_id = xiaozhi_user_id or str(body.get("xiaozhi_user_id") or "").strip()
+                xiaozhi_agent_id = xiaozhi_agent_id or str(body.get("xiaozhi_agent_id") or "").strip()
+
+        identity = resolve_mcp_identity(
+            db,
+            token,
+            global_token=MCP_API_TOKEN,
+            xiaozhi_user_id=xiaozhi_user_id or None,
+            xiaozhi_agent_id=xiaozhi_agent_id or None,
+            fallback_elder_id=MCP_ELDER_USER_ID,
+            allow_auto_provision=False,
+        )
+        if not identity:
+            return jsonify({"ok": False, "error": "MCP Token 无效或无法识别用户"}), 401
+        if identity.get("error"):
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "error": identity.get("message") or identity["error"],
+                        "need_bind": identity.get("error") == "need_bind",
+                        "xiaozhi_user_id": identity.get("xiaozhi_user_id"),
+                    }
+                ),
+                403,
+            )
+        g.mcp_elder_id = int(identity["elder_user_id"])
+        g.mcp_identity = identity
         return view(*args, **kwargs)
 
     return wrapped
 
 
 def resolve_mcp_elder_id(db: sqlite3.Connection) -> int | None:
+    elder_id = getattr(g, "mcp_elder_id", None)
+    if elder_id:
+        return int(elder_id)
     if MCP_ELDER_USER_ID:
         row = db.execute(
             "SELECT id FROM users WHERE id = ? AND role = ?",
@@ -196,8 +251,13 @@ def load_current_user():
     user_id = session.get("user_id")
     if not user_id:
         return None
-    return get_db().execute(
-        "SELECT id, username, email, role, created_at FROM users WHERE id = ?",
+    db = get_db()
+    try:
+        ensure_user_mcp_token(db, int(user_id))
+    except Exception:  # noqa: BLE001
+        pass
+    return db.execute(
+        "SELECT id, username, email, role, mcp_token, created_at FROM users WHERE id = ?",
         (user_id,),
     ).fetchone()
 
@@ -256,6 +316,7 @@ def ensure_db_and_protect():
         "api_mcp_matters_complete",
         "api_mcp_meds_today",
         "api_mcp_meds_taken",
+        "api_mcp_whoami",
     }
     if request.endpoint in open_endpoints or request.endpoint is None:
         return None
@@ -417,6 +478,14 @@ def dashboard():
             "safety_label": "正常",
         }
         voice_matters = list_matters(db, elder_id, status=None, limit=15)
+        mcp_token = ""
+        xiaozhi_links = []
+        if user:
+            try:
+                mcp_token = ensure_user_mcp_token(db, int(user["id"]))
+            except Exception:  # noqa: BLE001
+                mcp_token = (user["mcp_token"] if "mcp_token" in user.keys() else "") or ""
+            xiaozhi_links = list_xiaozhi_links_for_elder(db, elder_id)
         return render_dashboard(
             "index.html",
             "dashboard",
@@ -427,6 +496,8 @@ def dashboard():
             ro=None,
             care_stats=care_stats,
             voice_matters=voice_matters,
+            mcp_token=mcp_token,
+            xiaozhi_links=xiaozhi_links,
         )
 
     modules = [
@@ -466,6 +537,14 @@ def dashboard():
             "url": url_for("safety"),
         },
     ]
+    mcp_token = ""
+    xiaozhi_links = []
+    if user:
+        try:
+            mcp_token = ensure_user_mcp_token(db, int(user["id"]))
+        except Exception:  # noqa: BLE001
+            mcp_token = (user["mcp_token"] if "mcp_token" in user.keys() else "") or ""
+        xiaozhi_links = list_xiaozhi_links_for_elder(db, elder_id)
     return render_dashboard(
         "index.html",
         "dashboard",
@@ -476,6 +555,8 @@ def dashboard():
         ro=reality_orientation_context(),
         care_stats=None,
         voice_matters=list_matters(db, elder_id, status=None, limit=15),
+        mcp_token=mcp_token,
+        xiaozhi_links=xiaozhi_links,
     )
 
 
@@ -837,6 +918,69 @@ def api_mcp_meds_taken():
             "speak": f"好的，已在网站记下「{med_name}」今天服用过了。",
         }
     )
+
+
+@app.route("/api/mcp/whoami", methods=["GET"])
+@mcp_token_required
+def api_mcp_whoami():
+    """返回当前 Token 对应的记忆归属（用于核对是否区分到正确用户）。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    row = db.execute(
+        "SELECT id, username, role, mcp_token FROM users WHERE id = ?",
+        (elder_id,),
+    ).fetchone()
+    identity = getattr(g, "mcp_identity", {}) or {}
+    return jsonify(
+        {
+            "ok": True,
+            "elder_user_id": elder_id,
+            "username": row["username"] if row else None,
+            "auth": identity.get("auth"),
+            "first_use": bool(identity.get("first_use")),
+            "xiaozhi_user_id": identity.get("xiaozhi_user_id"),
+        }
+    )
+
+
+@app.route("/settings/mcp-token", methods=["POST"])
+@login_required
+def settings_mcp_token():
+    """刷新个人语音同步密钥，或手动绑定小智 UserId。"""
+    db = get_db()
+    user = load_current_user()
+    if not user:
+        flash("请先登录。", "warning")
+        return redirect(url_for("login"))
+    action = (request.form.get("action") or "").strip()
+    elder_id = effective_care_user_id()
+    if action == "rotate":
+        rotate_user_mcp_token(db, int(user["id"]))
+        flash("已生成新的语音同步密钥，请同步更新小智 MCP 配置。", "success")
+    elif action == "bind_xiaozhi":
+        xid = (request.form.get("xiaozhi_user_id") or "").strip()
+        agent = (request.form.get("xiaozhi_agent_id") or "").strip() or None
+        try:
+            bind_xiaozhi_user(db, int(elder_id), xid, agent_id=agent)
+            elder_name = db.execute(
+                "SELECT username FROM users WHERE id = ?", (elder_id,)
+            ).fetchone()
+            label = elder_name["username"] if elder_name else str(elder_id)
+            flash(
+                f"已绑定小智用户 {xid} → 记忆港湾账号「{label}」（id={elder_id}）。",
+                "success",
+            )
+        except ValueError as exc:
+            flash(str(exc), "danger")
+    elif action == "unbind_xiaozhi":
+        xid = (request.form.get("xiaozhi_user_id") or "").strip()
+        if unbind_xiaozhi_user(db, int(elder_id), xid):
+            flash(f"已解除与小智用户 {xid} 的绑定。", "success")
+        else:
+            flash("未找到该绑定记录。", "warning")
+    else:
+        flash("未知操作。", "warning")
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/api/cst/session/<int:session_num>/card-speak", methods=["POST"])

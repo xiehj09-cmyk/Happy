@@ -1,0 +1,67 @@
+# 记忆港湾 · 双服务：官网(web) + 小智 MCP(mcp)
+#
+# 启动：
+#   docker compose up -d --build
+# 访问官网：
+#   http://127.0.0.1:5000
+#
+# 密钥：
+#   - 官网：根目录 .env（可从 .env.example 复制）
+#   - MCP：xiaozhi-mcp/.env 中的 XIAOZHI_MCP_ENDPOINT
+#   - 两边 MCP_API_TOKEN / WEBSITE_MCP_TOKEN 必须一致
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memory-harbor-web
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "5000"
+      FLASK_DEBUG: "0"
+      # 容器内自指；MCP 通过服务名 web 访问
+      MCP_API_BASE: "http://web:5000"
+    volumes:
+      - web_instance:/app/instance
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mcp:
+    build:
+      context: ./xiaozhi-mcp
+      dockerfile: Dockerfile
+    container_name: memory-harbor-mcp
+    env_file:
+      - ./xiaozhi-mcp/.env
+    environment:
+      # 容器网络内访问官网服务名
+      WEBSITE_BASE: "http://web:5000"
+      # 与官网 MCP_API_TOKEN 对齐（可被 xiaozhi-mcp/.env 覆盖）
+      WEBSITE_MCP_TOKEN: "${MCP_API_TOKEN:-memory-harbor-mcp-dev-token}"
+      MCP_API_TOKEN: "${MCP_API_TOKEN:-memory-harbor-mcp-dev-token}"
+    volumes:
+      - mcp_notes:/app/data
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  web_instance:
+  mcp_notes:

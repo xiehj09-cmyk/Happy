@@ -13,24 +13,59 @@ const { URL } = require("url");
 const NOTES_FILE = path.join(__dirname, "data", "voice_notes.txt");
 const ENV_FILE = path.join(__dirname, ".env");
 
+function parseXiaozhiIds(endpoint) {
+  const out = { userId: "", agentId: "" };
+  if (!endpoint) return out;
+  try {
+    const u = new URL(endpoint);
+    const jwt = u.searchParams.get("token") || "";
+    const part = jwt.split(".")[1];
+    if (!part) return out;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(Buffer.from(pad, "base64").toString("utf8"));
+    if (payload.userId != null) out.userId = String(payload.userId);
+    if (payload.agentId != null) out.agentId = String(payload.agentId);
+  } catch (_e) {
+    /* ignore */
+  }
+  return out;
+}
+
 function loadEnv() {
   const out = {
     WEBSITE_BASE: "http://127.0.0.1:5000",
     WEBSITE_MCP_TOKEN: "",
+    XIAOZHI_MCP_ENDPOINT: "",
   };
-  if (!fs.existsSync(ENV_FILE)) return out;
-  fs.readFileSync(ENV_FILE, "utf8")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .forEach((l) => {
-      const i = l.indexOf("=");
-      const k = l.slice(0, i).trim();
-      const v = l.slice(i + 1).trim();
-      if (k === "WEBSITE_BASE" || k === "MCP_API_BASE") out.WEBSITE_BASE = v.replace(/\/$/, "");
-      if (k === "WEBSITE_MCP_TOKEN" || k === "MCP_API_TOKEN") out.WEBSITE_MCP_TOKEN = v;
-      if (k === "XIAOZHI_MCP_ENDPOINT") out.XIAOZHI_MCP_ENDPOINT = v;
-    });
+  // 1) 本目录 .env（本机开发）
+  if (fs.existsSync(ENV_FILE)) {
+    fs.readFileSync(ENV_FILE, "utf8")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#") && l.includes("="))
+      .forEach((l) => {
+        const i = l.indexOf("=");
+        const k = l.slice(0, i).trim();
+        const v = l.slice(i + 1).trim();
+        if (k === "WEBSITE_BASE" || k === "MCP_API_BASE") out.WEBSITE_BASE = v.replace(/\/$/, "");
+        if (k === "WEBSITE_MCP_TOKEN" || k === "MCP_API_TOKEN") out.WEBSITE_MCP_TOKEN = v;
+        if (k === "XIAOZHI_MCP_ENDPOINT") out.XIAOZHI_MCP_ENDPOINT = v;
+      });
+  }
+  // 2) 进程环境变量优先（Docker Compose）
+  if (process.env.WEBSITE_BASE || process.env.MCP_API_BASE) {
+    out.WEBSITE_BASE = (process.env.WEBSITE_BASE || process.env.MCP_API_BASE).replace(/\/$/, "");
+  }
+  if (process.env.WEBSITE_MCP_TOKEN || process.env.MCP_API_TOKEN) {
+    out.WEBSITE_MCP_TOKEN = process.env.WEBSITE_MCP_TOKEN || process.env.MCP_API_TOKEN;
+  }
+  if (process.env.XIAOZHI_MCP_ENDPOINT) {
+    out.XIAOZHI_MCP_ENDPOINT = process.env.XIAOZHI_MCP_ENDPOINT;
+  }
+  const ids = parseXiaozhiIds(out.XIAOZHI_MCP_ENDPOINT);
+  out.XIAOZHI_USER_ID = process.env.XIAOZHI_USER_ID || ids.userId || "";
+  out.XIAOZHI_AGENT_ID = process.env.XIAOZHI_AGENT_ID || ids.agentId || "";
   return out;
 }
 
@@ -90,6 +125,8 @@ function apiRequest(method, apiPath, body) {
         headers: {
           Authorization: "Bearer " + ENV.WEBSITE_MCP_TOKEN,
           "Content-Type": "application/json",
+          ...(ENV.XIAOZHI_USER_ID ? { "X-Xiaozhi-User-Id": ENV.XIAOZHI_USER_ID } : {}),
+          ...(ENV.XIAOZHI_AGENT_ID ? { "X-Xiaozhi-Agent-Id": ENV.XIAOZHI_AGENT_ID } : {}),
           ...(payload ? { "Content-Length": Buffer.byteLength(payload) } : {}),
         },
         timeout: 12000,
@@ -148,7 +185,9 @@ module.exports = {
             "。网站：" +
             ENV.WEBSITE_BASE +
             "。Token：" +
-            (ENV.WEBSITE_MCP_TOKEN ? "已配置" : "未配置")
+            (ENV.WEBSITE_MCP_TOKEN ? "已配置" : "未配置") +
+            "。小智用户：" +
+            (ENV.XIAOZHI_USER_ID || "未解析")
         )
     );
 

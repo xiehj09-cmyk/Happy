@@ -1,0 +1,17 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+*.db
+instance
+.env
+.DS_Store
+xiaozhi-mcp
+*.md
+.dockerignore
+Dockerfile
+docker-compose*.yml
+.env.docker.example
+DOCKER.md
+.cursor

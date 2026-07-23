@@ -241,6 +241,71 @@
           </ul>
         </section>
 
+        <section class="panel mcp-token-panel" data-speak-card>
+          <header class="panel-header compact speak-toolbar">
+            <div>
+              <h2>小智账号绑定</h2>
+              <p>请手动填写小智 UserId，绑定后语音事项才会记到本账号。</p>
+            </div>
+            <button type="button" class="speak-btn">🔊 大声朗读</button>
+          </header>
+          <div class="mcp-token-body" data-speak-text>
+            <p class="stat-note">
+              UserId 可在小智控制台或接入点 Token 中查看（JWT 里的 <code>userId</code>）。
+              绑定完成后，请保持 MCP 使用全局 <code>WEBSITE_MCP_TOKEN</code>，桥接会自动带上该 UserId。
+            </p>
+
+            {% if xiaozhi_links %}
+            <ul class="task-list">
+              {% for link in xiaozhi_links %}
+              <li class="task-item">
+                <time>已绑定</time>
+                <div>
+                  <strong>小智用户 {{ link.xiaozhi_user_id }}</strong>
+                  <p>
+                    记入当前照护账号
+                    {% if elder_username %}「{{ elder_username }}」{% elif user %}「{{ user.username }}」{% endif %}
+                    {% if link.xiaozhi_agent_id %} · Agent {{ link.xiaozhi_agent_id }}{% endif %}
+                    {% if link.last_seen_at %} · 最近同步 {{ link.last_seen_at }}{% else %} · 绑定于 {{ link.created_at }}{% endif %}
+                  </p>
+                  <form method="post" action="{{ url_for('settings_mcp_token') }}" class="inline-unbind">
+                    <input type="hidden" name="action" value="unbind_xiaozhi" />
+                    <input type="hidden" name="xiaozhi_user_id" value="{{ link.xiaozhi_user_id }}" />
+                    <button type="submit" class="btn-ghost">解除绑定</button>
+                  </form>
+                </div>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="stat-note"><strong>尚未绑定。</strong>请先用要记事项的账号登录（例如 15），再填写 UserId 绑定。</p>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('settings_mcp_token') }}" class="auth-form mcp-bind-form">
+              <input type="hidden" name="action" value="bind_xiaozhi" />
+              <label class="field">
+                <span>小智 UserId</span>
+                <input type="text" name="xiaozhi_user_id" placeholder="例如 1016444" required />
+              </label>
+              <label class="field">
+                <span>AgentId（可选）</span>
+                <input type="text" name="xiaozhi_agent_id" placeholder="例如 2161930" />
+              </label>
+              <button type="submit" class="btn-primary btn-inline">手动绑定到当前账号</button>
+            </form>
+
+            <details class="mcp-token-advanced">
+              <summary>高级：个人语音同步密钥</summary>
+              <p class="stat-note">若不用共用桥接，也可把此密钥直接填到 <code>WEBSITE_MCP_TOKEN</code>。</p>
+              <code class="api-snippet mcp-token-value" id="mcp-token-value">{{ mcp_token or '登录后自动生成' }}</code>
+              <form method="post" action="{{ url_for('settings_mcp_token') }}">
+                <input type="hidden" name="action" value="rotate" />
+                <button type="submit" class="btn-ghost">更换密钥</button>
+              </form>
+            </details>
+          </div>
+        </section>
+
         <section class="panel tips-panel" data-speak-card>
           <header class="panel-header compact speak-toolbar">
             <div>
