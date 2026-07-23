@@ -2076,19 +2076,37 @@ def register():
 def forgot_password():
     if session.get("user_id"):
         return redirect(url_for("dashboard"))
-    form = {"username": (request.form.get("username") or "").strip(), "email": (request.form.get("email") or "").strip(), "verified": False}
+    role = (request.form.get("role") or request.args.get("role") or ROLE_ELDER).strip()
+    if role not in VALID_ROLES:
+        role = ROLE_ELDER
+    form = {
+        "username": (request.form.get("username") or "").strip(),
+        "email": (request.form.get("email") or "").strip(),
+        "role": role,
+        "verified": False,
+    }
     if request.method == "POST":
         action = request.form.get("action") or "verify"
         password = request.form.get("password") or ""
         confirm = request.form.get("confirm_password") or ""
-        error = validate_username(form["username"]) or validate_email(form["email"])
+        error = validate_role(role) or validate_username(form["username"]) or validate_email(form["email"])
         if error:
             flash(error, "error")
             return render_template("forgot_password.html", **form)
         db = get_db()
-        user = db.execute("SELECT * FROM users WHERE username = ? AND email = ?", (form["username"], form["email"])).fetchone()
+        user = db.execute(
+            "SELECT * FROM users WHERE username = ? AND email = ?",
+            (form["username"], form["email"]),
+        ).fetchone()
         if user is None:
             flash("用户名与邮箱不匹配，请核对后重试。", "error")
+            return render_template("forgot_password.html", **form)
+        user_role = user["role"] if "role" in user.keys() else ROLE_ELDER
+        if user_role != role:
+            flash(
+                f"该账号实际是「{ROLE_LABELS.get(user_role, '未知')}」，请切换上方账号类型后再试。",
+                "error",
+            )
             return render_template("forgot_password.html", **form)
         if action == "verify":
             form["verified"] = True
@@ -2099,10 +2117,13 @@ def forgot_password():
             form["verified"] = True
             flash(error, "error")
             return render_template("forgot_password.html", **form)
-        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), user["id"]))
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(password), user["id"]),
+        )
         db.commit()
         flash("密码已重置，请使用新密码登录。", "success")
-        return redirect(url_for("login"))
+        return redirect(url_for("login", role=role))
     return render_template("forgot_password.html", **form)
 
 

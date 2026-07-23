@@ -52,7 +52,7 @@
       </form>
 
       <nav class="form-links">
-        <a href="{{ url_for('forgot_password') }}">找回密码</a>
+        <a href="{{ url_for('forgot_password', role=role if role is defined else 'elder') }}">找回密码</a>
         <a href="{{ url_for('register') }}">注册账号</a>
       </nav>
     </div>

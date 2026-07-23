@@ -57,17 +57,21 @@ body {
 .auth-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
   padding: 3rem clamp(1.25rem, 4vw, 4rem);
-  align-items: center;
+  align-items: stretch;
   max-width: 1180px;
   margin: 0 auto;
 }
 
 .brand-panel {
   padding: 1rem 0.5rem 1rem 0;
-  max-width: 34rem;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
   animation: rise 0.7s ease both;
 }
 
@@ -88,9 +92,9 @@ body {
 .brand-title {
   margin: 0 0 1rem;
   font-family: var(--font-display);
-  font-size: clamp(2.1rem, 4.2vw, 3.25rem);
+  font-size: clamp(2rem, 3.6vw, 2.85rem);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
   color: var(--ink);
 }
 
@@ -98,27 +102,33 @@ body {
   margin: 0;
   font-size: 1.05rem;
   color: var(--ink-soft);
-  max-width: 30rem;
+  max-width: 36rem;
+  line-height: 1.7;
 }
 
 .form-panel {
   display: flex;
-  justify-content: flex-end;
+  justify-content: stretch;
+  align-items: stretch;
   animation: rise 0.7s ease 0.12s both;
 }
 
 .form-card {
-  width: min(100%, 420px);
-  padding: 2rem 1.75rem 1.5rem;
+  width: 100%;
+  max-width: none;
+  padding: 2rem 1.85rem 1.5rem;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .form-card-wide {
-  width: min(100%, 460px);
+  width: 100%;
 }
 
 .role-switch {
@@ -126,10 +136,12 @@ body {
   padding: 0;
   border: 0;
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
 }
 
 .role-switch legend {
+  grid-column: 1 / -1;
   margin: 0 0 0.45rem;
   font-size: 0.92rem;
   font-weight: 600;
@@ -139,6 +151,7 @@ body {
 .role-option {
   display: block;
   cursor: pointer;
+  min-width: 0;
 }
 
 .role-option input {
@@ -149,13 +162,14 @@ body {
 
 .role-card {
   display: grid;
-  gap: 0.15rem;
-  padding: 0.85rem 1rem;
+  gap: 0.2rem;
+  padding: 0.9rem 0.95rem;
   border-radius: 14px;
   border: 1.5px solid var(--line);
   background: rgba(255, 255, 255, 0.7);
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-  min-height: 44px;
+  min-height: 5.2rem;
+  height: 100%;
 }
 
 .role-card strong {
@@ -164,8 +178,13 @@ body {
 
 .role-card small {
   color: var(--ink-soft);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.role-switch[disabled] .role-card {
+  opacity: 0.75;
+  cursor: default;
 }
 
 .role-option input:checked + .role-card {
@@ -451,6 +470,7 @@ body {
   .brand-panel {
     padding: 0;
     max-width: none;
+    min-height: 0;
   }
 
   .form-panel {
@@ -459,6 +479,10 @@ body {
 
   .form-card {
     width: 100%;
+  }
+
+  .role-switch {
+    grid-template-columns: 1fr;
   }
 }
 
