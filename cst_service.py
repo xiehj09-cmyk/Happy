@@ -51,6 +51,11 @@ def ensure_cst_tables(db: sqlite3.Connection) -> None:
 
 
 def get_cst_profile(db: sqlite3.Connection, user_id: int) -> sqlite3.Row:
+    if not user_id:
+        raise ValueError("user_id 无效")
+    exists = db.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    if exists is None:
+        raise ValueError(f"用户不存在: {user_id}")
     row = db.execute(
         "SELECT * FROM cst_profile WHERE user_id = ?",
         (user_id,),

@@ -187,9 +187,26 @@ def login_required(view):
         if not session.get("user_id"):
             flash("请先登录后再访问网站。", "warning")
             return redirect(url_for("login", next=request.path))
+        # Zeabur 重部署后库可能被清空，旧 Cookie 会导致后续页面 500
+        user = load_current_user()
+        if user is None:
+            session.clear()
+            flash("登录已失效（账号数据已更新），请重新登录或注册。", "warning")
+            return redirect(url_for("login", next=request.path))
+        if session.get("role") == ROLE_FAMILY:
+            elder_id = session.get("elder_user_id")
+            if not elder_id or not _user_exists(int(elder_id)):
+                session.clear()
+                flash("绑定的老人账号不存在，请重新用家属账号登录。", "warning")
+                return redirect(url_for("login", next=request.path))
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def _user_exists(user_id: int) -> bool:
+    row = get_db().execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    return row is not None
 
 
 def _extract_mcp_bearer() -> str:
@@ -291,8 +308,12 @@ def effective_care_user_id() -> int | None:
     if not session.get("user_id"):
         return None
     if session.get("role") == ROLE_FAMILY:
-        return session.get("elder_user_id") or session.get("user_id")
-    return session.get("user_id")
+        elder_id = session.get("elder_user_id")
+        if elder_id and _user_exists(int(elder_id)):
+            return int(elder_id)
+        return None
+    uid = session.get("user_id")
+    return int(uid) if uid and _user_exists(int(uid)) else None
 
 
 def establish_session(user, elder=None) -> None:
@@ -402,6 +423,10 @@ def landing():
 def dashboard():
     user = load_current_user()
     elder_id = effective_care_user_id()
+    if not user or not elder_id:
+        session.clear()
+        flash("无法确认照护账号，请重新登录。", "warning")
+        return redirect(url_for("login"))
     role = session.get("role", ROLE_ELDER)
     is_family = role == ROLE_FAMILY
     db = get_db()

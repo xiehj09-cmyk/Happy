@@ -40,7 +40,7 @@ spec:
 
     ## 数据卷
 
-    - web：`/app/instance`（SQLite）
+    - web：请挂载 Volume 到 `/app/instance`，否则每次 Redeploy 会清空账号，旧登录 Cookie 会失效
     - mcp：`/app/data`（语音事项 txt）
   services:
     - name: web
