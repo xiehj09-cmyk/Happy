@@ -36,64 +36,62 @@
       </aside>
     </section>
 
-    <div class="page-grid companion-grid">
-      <section
-        class="panel chat-panel companion-chat-panel"
-        id="ai-chat-app"
-        data-chat-url="{{ url_for('api_companion_chat') }}"
-        data-enabled="{{ '1' if companion_enabled else '0' }}"
-        data-opening="您好，我是记忆港湾的陪伴助手。今天想聊点什么？慢慢说就好。">
-        <header class="panel-header compact">
-          <div>
-            <h2>和 AI 说说话</h2>
-            <p>轻松陪伴，不是考试，也不是医嘱。</p>
-          </div>
-          <button type="button" class="btn-ghost" id="ai-chat-reset">清空对话</button>
-        </header>
+    <section
+      class="panel chat-panel companion-chat-panel"
+      id="ai-chat-app"
+      data-chat-url="{{ url_for('api_companion_chat') }}"
+      data-enabled="{{ '1' if companion_enabled else '0' }}"
+      data-opening="您好，我是记忆港湾的陪伴助手。今天想聊点什么？慢慢说就好。">
+      <header class="panel-header compact">
+        <div>
+          <h2>和 AI 说说话</h2>
+          <p>轻松陪伴，不是考试，也不是医嘱。</p>
+        </div>
+        <button type="button" class="btn-ghost" id="ai-chat-reset">清空对话</button>
+      </header>
 
-        {% if not companion_enabled %}
-        <p class="ai-disclaimer">尚未配置 DEEPSEEK_API_KEY，暂时无法聊天。请管理员在环境变量中配置后刷新。</p>
-        {% else %}
-        <p class="ai-disclaimer">陪伴聊天仅供参考，不能替代医生面诊与处方。</p>
-        {% endif %}
+      {% if not companion_enabled %}
+      <p class="ai-disclaimer">尚未配置 DEEPSEEK_API_KEY，暂时无法聊天。请管理员在环境变量中配置后刷新。</p>
+      {% else %}
+      <p class="ai-disclaimer">陪伴聊天仅供参考，不能替代医生面诊与处方。</p>
+      {% endif %}
 
-        <div class="chat-compose">
-          <div class="chat-log" id="ai-chat-log" role="log" aria-live="polite"></div>
-          <form class="chat-input-row" id="ai-chat-form">
-            <label class="sr-only" for="ai-chat-input">您想说的话</label>
-            <input
-              type="text"
-              id="ai-chat-input"
-              maxlength="500"
-              placeholder="例如：今天天气不错，我想出去走走…"
-              autocomplete="off"
-              {% if not companion_enabled %}disabled{% endif %}
-            />
-            <button type="submit" class="btn-primary btn-inline" id="ai-chat-send" {% if not companion_enabled %}disabled{% endif %}>发送</button>
-          </form>
-          <p class="chat-hint">一次说一件事就好。需要用药或任务帮助时，可用右下角「需要帮助？」。</p>
+      <div class="chat-compose">
+        <div class="chat-log" id="ai-chat-log" role="log" aria-live="polite"></div>
+        <form class="chat-input-row" id="ai-chat-form">
+          <label class="sr-only" for="ai-chat-input">您想说的话</label>
+          <input
+            type="text"
+            id="ai-chat-input"
+            maxlength="500"
+            placeholder="例如：今天天气不错，我想出去走走…"
+            autocomplete="off"
+            {% if not companion_enabled %}disabled{% endif %}
+          />
+          <button type="submit" class="btn-primary btn-inline" id="ai-chat-send" {% if not companion_enabled %}disabled{% endif %}>发送</button>
+        </form>
+        <p class="chat-hint">一次说一件事就好。需要用药或任务帮助时，可用右下角「需要帮助？」。</p>
+      </div>
+    </section>
+
+    <div class="companion-bottom-row">
+      <section class="panel">
+        <header class="panel-header compact"><div><h2>可以这样开始</h2></div></header>
+        <div class="companion-quick">
+          <button type="button" class="companion-chip" data-prompt="今天天气怎么样，适合出门吗？">聊聊天气</button>
+          <button type="button" class="companion-chip" data-prompt="我想回忆一下以前住的地方。">聊聊回忆</button>
+          <button type="button" class="companion-chip" data-prompt="我有点无聊，陪我随便聊两句吧。">随便聊聊</button>
+          <button type="button" class="companion-chip" data-prompt="今天心情一般，听我说说话好吗？">说说心情</button>
         </div>
       </section>
-
-      <aside class="side-stack">
-        <section class="panel">
-          <header class="panel-header compact"><div><h2>可以这样开始</h2></div></header>
-          <div class="companion-quick">
-            <button type="button" class="companion-chip" data-prompt="今天天气怎么样，适合出门吗？">聊聊天气</button>
-            <button type="button" class="companion-chip" data-prompt="我想回忆一下以前住的地方。">聊聊回忆</button>
-            <button type="button" class="companion-chip" data-prompt="我有点无聊，陪我随便聊两句吧。">随便聊聊</button>
-            <button type="button" class="companion-chip" data-prompt="今天心情一般，听我说说话好吗？">说说心情</button>
-          </div>
-        </section>
-        <section class="panel">
-          <header class="panel-header compact"><div><h2>和 CST 的区别</h2></div></header>
-          <ul class="tips-list">
-            <li><strong>AI 陪伴</strong>：自由闲聊，话题轻松。</li>
-            <li><strong>CST 终端</strong>：按课程主题看图说话，有引导节奏。</li>
-            <li>右下角帮助助手：管用药与任务，不是闲聊。</li>
-          </ul>
-        </section>
-      </aside>
+      <section class="panel">
+        <header class="panel-header compact"><div><h2>和 CST 的区别</h2></div></header>
+        <ul class="tips-list">
+          <li><strong>AI 陪伴</strong>：自由闲聊，话题轻松。</li>
+          <li><strong>CST 终端</strong>：按课程主题看图说话，有引导节奏。</li>
+          <li>右下角帮助助手：管用药与任务，不是闲聊。</li>
+        </ul>
+      </section>
     </div>
   </main>
 </div>

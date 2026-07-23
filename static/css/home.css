@@ -12,9 +12,9 @@
 }
 
 .home-topbar-inner {
-  max-width: 1180px;
+  max-width: 1360px;
   margin: 0 auto;
-  padding: 0.85rem 1.25rem;
+  padding: 0.85rem 1.5rem;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -84,16 +84,23 @@
 }
 
 .home-content {
-  max-width: 1180px;
+  max-width: 1360px;
   margin: 0 auto;
-  padding: 1.75rem 1.25rem 3rem;
+  padding: 1.75rem 1.5rem 3rem;
   display: grid;
   gap: 1.5rem;
 }
 
+.welcome-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-content: start;
+}
+
 .welcome-panel {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1fr;
   gap: 1.25rem;
   padding: 2rem;
   border-radius: var(--radius);
@@ -242,7 +249,7 @@
 
 .welcome-desc {
   margin: 0;
-  max-width: 38rem;
+  max-width: 42rem;
   color: var(--ink-soft);
   font-size: 0.98rem;
 }
@@ -282,12 +289,6 @@
   pointer-events: none;
 }
 
-.welcome-stats {
-  display: grid;
-  gap: 0.85rem;
-  align-content: center;
-}
-
 .stat-card {
   padding: 1rem 1.1rem;
   border-radius: 16px;
@@ -323,7 +324,14 @@
 
 .home-grid {
   display: grid;
-  grid-template-columns: 1.35fr 0.65fr;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.home-bottom-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.25rem;
   align-items: start;
 }
@@ -356,7 +364,7 @@
 
 .module-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
   margin-top: 1.25rem;
 }
@@ -535,6 +543,12 @@ a.module-card:hover {
   background: var(--teal);
 }
 
+@media (max-width: 1100px) {
+  .home-bottom-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .home-topbar-inner {
     grid-template-columns: 1fr;
@@ -555,12 +569,17 @@ a.module-card:hover {
   }
 
   .welcome-panel,
-  .home-grid {
+  .home-grid,
+  .home-bottom-row {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-stats {
     grid-template-columns: 1fr;
   }
 
   .module-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -571,5 +590,9 @@ a.module-card:hover {
 
   .panel {
     padding: 1.15rem;
+  }
+
+  .module-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -30,14 +30,36 @@ Zeabur **不支持直接跑 docker-compose**，请按「两个 Git 服务」部�
 
 ### 环境变量
 
-**web**
+在 Zeabur 服务 → **Variables** 里按 `KEY=value` 逐行粘贴（可参考仓库根目录 `zeabur.web.env.example` / `zeabur.mcp.env.example`）。
 
-| 变量 | 说明 |
-|------|------|
-| `SECRET_KEY` | 随机长字符串 |
-| `MCP_API_TOKEN` | 与 mcp 一致的桥接 Token |
-| `HOST` | `0.0.0.0`（可选，镜像已默认） |
-| `DEEPSEEK_API_KEY` 等 | 按需 |
+**web**（必填 + DeepSeek / 百度语音）
+
+```text
+HOST=0.0.0.0
+PORT=${WEB_PORT}
+FLASK_DEBUG=0
+TRUST_PROXY=1
+WAITRESS_THREADS=4
+SECRET_KEY=请换成随机长字符串
+MCP_API_TOKEN=请与 mcp 的 WEBSITE_MCP_TOKEN 一致
+MCP_ELDER_USER_ID=0
+DEEPSEEK_API_KEY=你的DeepSeek密钥
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_TIMEOUT=60
+BAIDU_API_KEY=
+BAIDU_SECRET_KEY=
+BAIDU_ACCESS_TOKEN=你的百度AccessToken
+BAIDU_TTS_SPD=4
+BAIDU_TTS_PER=0
+BAIDU_ASR_URL=https://vop.baidu.com/server_api
+BAIDU_ASR_DEV_PID=1537
+```
+
+说明：
+- `PORT` 必须用 `${WEB_PORT}`，不要写死端口
+- 百度：填 `BAIDU_API_KEY` + `BAIDU_SECRET_KEY`，**或**只填 `BAIDU_ACCESS_TOKEN`（Token 会过期，优先 Key/Secret）
+- DeepSeek / 百度密钥只配在 Zeabur，不要提交到 Git
 
 **mcp**
 

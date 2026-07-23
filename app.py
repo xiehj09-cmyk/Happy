@@ -465,12 +465,6 @@ def dashboard():
                     "note": "维护服药时间，查看今日是否按时服用",
                     "url": url_for("medication"),
                 },
-                {
-                    "time": "安全",
-                    "title": "查看安全监护",
-                    "note": "关注定位与异常告警",
-                    "url": url_for("safety"),
-                },
             ]
         else:
             today_tasks = [
@@ -511,20 +505,11 @@ def dashboard():
                 "status": "可用",
                 "url": url_for("medication"),
             },
-            {
-                "title": "安全监护",
-                "desc": "定位、门磁与活动传感器联动，异常情况及时告警。",
-                "icon": "shield",
-                "status": "可用",
-                "url": url_for("safety"),
-            },
         ]
         care_stats = {
             "task_pending": board.get("pending_count", 0),
             "task_total": board.get("total", 0),
             "med_count": len(meds),
-            "safety_ok": True,
-            "safety_label": "正常",
         }
         voice_matters = list_matters(db, elder_id, status=None, limit=15)
         mcp_token = ""
@@ -585,13 +570,6 @@ def dashboard():
             "status": "可用",
             "url": url_for("medication"),
         },
-        {
-            "title": "安全监护",
-            "desc": "定位、门磁与活动传感器联动，异常情况及时告警。",
-            "icon": "shield",
-            "status": "可用",
-            "url": url_for("safety"),
-        },
     ]
     mcp_token = ""
     xiaozhi_links = []
@@ -619,7 +597,7 @@ def dashboard():
 def _redirect_family_from_elder_modules():
     """家属端不提供 CST / AI 陪伴等老人训练模块。"""
     if session.get("role") == ROLE_FAMILY:
-        flash("记忆练习、CST 终端与 AI 陪伴请在老人账号中使用。家属端可查看进度，并管理任务、用药与安全。", "info")
+        flash("记忆练习、CST 终端与 AI 陪伴请在老人账号中使用。家属端可查看进度，并管理任务与用药。", "info")
         return redirect(url_for("dashboard"))
     return None
 

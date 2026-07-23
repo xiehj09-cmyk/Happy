@@ -27,6 +27,22 @@ spec:
       type: STRING
       name: Flask Secret Key
       description: 网站 Session 密钥（随机长字符串）
+    - key: DEEPSEEK_API_KEY
+      type: STRING
+      name: DeepSeek API Key
+      description: DeepSeek 密钥（AI 陪伴 / 智能加药）
+    - key: BAIDU_API_KEY
+      type: STRING
+      name: Baidu API Key
+      description: 百度智能云语音 API Key
+    - key: BAIDU_SECRET_KEY
+      type: STRING
+      name: Baidu Secret Key
+      description: 百度智能云语音 Secret Key
+    - key: BAIDU_ACCESS_TOKEN
+      type: STRING
+      name: Baidu Access Token
+      description: 可选；不填则用 API Key/Secret 自动获取
   readme: |-
     # 记忆港湾 · Zeabur
 
@@ -63,16 +79,42 @@ spec:
           HOST:
             default: "0.0.0.0"
           PORT:
-            default: "8080"
+            default: ${WEB_PORT}
           FLASK_DEBUG:
             default: "0"
           TRUST_PROXY:
             default: "1"
+          WAITRESS_THREADS:
+            default: "4"
           SECRET_KEY:
             default: ${SECRET_KEY}
           MCP_API_TOKEN:
             default: ${MCP_API_TOKEN}
             expose: true
+          MCP_ELDER_USER_ID:
+            default: "0"
+          DEEPSEEK_API_KEY:
+            default: ${DEEPSEEK_API_KEY}
+          DEEPSEEK_BASE_URL:
+            default: https://api.deepseek.com
+          DEEPSEEK_MODEL:
+            default: deepseek-v4-flash
+          DEEPSEEK_TIMEOUT:
+            default: "60"
+          BAIDU_API_KEY:
+            default: ${BAIDU_API_KEY}
+          BAIDU_SECRET_KEY:
+            default: ${BAIDU_SECRET_KEY}
+          BAIDU_ACCESS_TOKEN:
+            default: ${BAIDU_ACCESS_TOKEN}
+          BAIDU_TTS_SPD:
+            default: "4"
+          BAIDU_TTS_PER:
+            default: "0"
+          BAIDU_ASR_URL:
+            default: https://vop.baidu.com/server_api
+          BAIDU_ASR_DEV_PID:
+            default: "1537"
           MCP_API_BASE:
             default: http://${CONTAINER_HOSTNAME}:${PORT}
             expose: true

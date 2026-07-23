@@ -13,26 +13,22 @@
 
   <main class="home-content">
     {% if role == 'family' %}
-    <section class="welcome-panel family-hero" data-speak-card>
+    <section class="welcome-panel family-hero">
       <div class="welcome-copy">
-        <div class="speak-toolbar">
-          <p class="welcome-kicker">家属照护台</p>
-          <button type="button" class="speak-btn">🔊 大声朗读</button>
-        </div>
+        <p class="welcome-kicker">家属照护台</p>
         <h1 id="greeting-title">您好，{{ user.username }}</h1>
-        <div data-speak-text>
+        <div>
           <p class="welcome-desc">
             {% if elder_username %}
-            正在照护 <strong>{{ elder_username }}</strong>。下面是老人记忆训练的进度，供您了解。训练请在老人账号完成；您这边重点管好任务、用药和安全。
+            正在照护 <strong>{{ elder_username }}</strong>。下面是老人记忆训练的进度，供您了解。训练请在老人账号完成；您这边重点管好任务与用药。
             {% else %}
-            下面是绑定老人的记忆训练进度。您可以在这里管理任务、用药与安全。
+            下面是绑定老人的记忆训练进度。您可以在这里管理任务与用药。
             {% endif %}
           </p>
         </div>
         <div class="welcome-actions">
           <a href="{{ url_for('tasks_page') }}" class="btn-primary btn-inline">管理任务</a>
           <a href="{{ url_for('medication') }}" class="btn-outline">用药管理</a>
-          <a href="{{ url_for('safety') }}" class="btn-outline">安全监护</a>
         </div>
       </div>
 
@@ -61,15 +57,14 @@
       </aside>
     </section>
 
-    <section class="panel family-progress-panel" data-speak-card>
-      <header class="panel-header compact speak-toolbar">
+    <section class="panel family-progress-panel">
+      <header class="panel-header compact">
         <div>
           <h2>{% if elder_username %}{{ elder_username }}{% else %}老人{% endif %}的训练进度</h2>
           <p>只供查看，没有开始训练的按钮。</p>
         </div>
-        <button type="button" class="speak-btn">🔊 大声朗读</button>
       </header>
-      <ol class="family-session-progress" aria-label="训练进度列表" data-speak-text>
+      <ol class="family-session-progress" aria-label="训练进度列表">
         {% for s in cst.sessions %}
         <li class="family-session-item is-{{ s.status }}">
           <span class="family-session-num">第 {{ s.num }} 次</span>
@@ -85,14 +80,11 @@
       </ol>
     </section>
     {% else %}
-    <section class="welcome-panel cst-hero" data-speak-card>
+    <section class="welcome-panel cst-hero">
       <div class="welcome-copy">
-        <div class="speak-toolbar">
-          <p class="welcome-kicker">今天的记忆小练习</p>
-          <button type="button" class="speak-btn">🔊 大声朗读</button>
-        </div>
+        <p class="welcome-kicker">今天的记忆小练习</p>
         <h1 id="greeting-title">您好，{{ user.username }}</h1>
-        <div data-speak-text>
+        <div>
           {% if cst.all_done %}
           <p class="welcome-desc">太好了，您已完成 14 次强化练习。可以慢慢进入维持期，我们继续陪着您。</p>
           {% else %}
@@ -132,15 +124,14 @@
       </aside>
     </section>
 
-    <section class="panel ro-panel" data-speak-card>
-      <header class="panel-header compact speak-toolbar">
+    <section class="panel ro-panel">
+      <header class="panel-header compact">
         <div>
           <h2>今天是哪一天</h2>
           <p>先一起确认日期、地点，帮助我们把心安在此刻。</p>
         </div>
-        <button type="button" class="speak-btn">🔊 大声朗读</button>
       </header>
-      <dl class="ro-grid" data-speak-text>
+      <dl class="ro-grid">
         <div><dt>日期</dt><dd>{{ ro.date }}</dd></div>
         <div><dt>星期</dt><dd>{{ ro.weekday }}</dd></div>
         <div><dt>季节</dt><dd>{{ ro.season }}</dd></div>
@@ -149,184 +140,159 @@
     </section>
     {% endif %}
 
-    <div class="home-grid">
-      <section class="panel modules-panel" data-speak-card>
-        <header class="panel-header speak-toolbar">
+    <section class="panel modules-panel">
+      <header class="panel-header">
+        <div>
+          <h2>{% if role == 'family' %}您可以做的事{% else %}您可以去的地方{% endif %}</h2>
+          <p>
+            {% if role == 'family' %}
+            管好用药与任务，我们一起照顾家人。
+            {% else %}
+            每次只选一件事。点大按钮就能进去。
+            {% endif %}
+          </p>
+        </div>
+      </header>
+      <div class="module-grid">
+        {% for item in modules %}
+        <a href="{{ item.url }}" class="module-card module-link">
+          <div class="module-icon module-icon-{{ item.icon }}" aria-hidden="true"></div>
+          <div class="module-body">
+            <div class="module-title-row">
+              <h3>{{ item.title }}</h3>
+              <span class="module-badge {{ 'badge-ok' if item.status in ['可用', '在线'] else 'badge-pending' }}">{{ item.status }}</span>
+            </div>
+            <p>{{ item.desc }}</p>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="home-bottom-row">
+      <section class="panel schedule-panel">
+        <header class="panel-header compact">
           <div>
-            <h2>{% if role == 'family' %}您可以做的事{% else %}您可以去的地方{% endif %}</h2>
+            <h2>今天要记得的事</h2>
             <p>
               {% if role == 'family' %}
-              管好用药、任务与安全，我们一起照顾家人。
+              跟进任务与用药，一件一件来。
               {% else %}
-              每次只选一件事。点大按钮就能进去。
+              先做练习，再看看用药。
               {% endif %}
             </p>
           </div>
-          <button type="button" class="speak-btn">🔊 大声朗读</button>
         </header>
-        <div class="module-grid" data-speak-text>
-          {% for item in modules %}
-          <a href="{{ item.url }}" class="module-card module-link">
-            <div class="module-icon module-icon-{{ item.icon }}" aria-hidden="true"></div>
-            <div class="module-body">
-              <div class="module-title-row">
-                <h3>{{ item.title }}</h3>
-                <span class="module-badge {{ 'badge-ok' if item.status in ['可用', '在线'] else 'badge-pending' }}">{{ item.status }}</span>
-              </div>
-              <p>{{ item.desc }}</p>
+        <ul class="task-list">
+          {% for task in today_tasks %}
+          <li class="task-item task-link">
+            <time>{{ task.time }}</time>
+            <div>
+              <strong>{{ task.title }}</strong>
+              <p>{{ task.note }}</p>
+              <a href="{{ task.url }}" class="inline-link">去看看 →</a>
             </div>
-          </a>
+          </li>
           {% endfor %}
-        </div>
+        </ul>
       </section>
 
-      <aside class="side-stack">
-        <section class="panel schedule-panel" data-speak-card>
-          <header class="panel-header compact speak-toolbar">
-            <div>
-              <h2>今天要记得的事</h2>
-              <p>
-                {% if role == 'family' %}
-                跟进任务与用药，一件一件来。
-                {% else %}
-                先做练习，再看看用药和安全。
-                {% endif %}
-              </p>
-            </div>
-            <button type="button" class="speak-btn">🔊 大声朗读</button>
-          </header>
-          <ul class="task-list" data-speak-text>
-            {% for task in today_tasks %}
-            <li class="task-item task-link">
-              <time>{{ task.time }}</time>
+      <section class="panel voice-matters-panel" data-speak-card>
+        <header class="panel-header compact speak-toolbar">
+          <div>
+            <h2>语音事项</h2>
+            <p>小智帮忙记下的事，会同步到这里；完成后状态会更新。</p>
+          </div>
+          <button type="button" class="speak-btn">🔊 大声朗读</button>
+        </header>
+        <ul class="task-list voice-matters-list" data-speak-text>
+          {% if voice_matters %}
+            {% for m in voice_matters %}
+            <li class="task-item {% if m.status == 'done' %}is-done{% endif %}">
+              <time>{{ m.status_label }}</time>
               <div>
-                <strong>{{ task.title }}</strong>
-                <p>{{ task.note }}</p>
-                <a href="{{ task.url }}" class="inline-link">去看看 →</a>
+                <strong>{{ m.body }}</strong>
+                <p>
+                  {{ m.created_at }}
+                  {% if m.completed_at %} · 完成于 {{ m.completed_at }}{% endif %}
+                </p>
+              </div>
+            </li>
+            {% endfor %}
+          {% else %}
+            <li class="task-item">
+              <div>
+                <strong>还没有语音事项</strong>
+                <p>对小智说「帮我记一下……」，就会出现在这里。</p>
+              </div>
+            </li>
+          {% endif %}
+        </ul>
+      </section>
+
+      <section class="panel mcp-token-panel">
+        <header class="panel-header compact">
+          <div>
+            <h2>小智账号绑定</h2>
+            <p>请手动填写小智 UserId，绑定后语音事项才会记到本账号。</p>
+          </div>
+        </header>
+        <div class="mcp-token-body">
+          <p class="stat-note">
+            UserId 可在小智控制台或接入点 Token 中查看（JWT 里的 <code>userId</code>）。
+            绑定完成后，请保持 MCP 使用全局 <code>WEBSITE_MCP_TOKEN</code>，桥接会自动带上该 UserId。
+          </p>
+
+          {% if xiaozhi_links %}
+          <ul class="task-list">
+            {% for link in xiaozhi_links %}
+            <li class="task-item">
+              <time>已绑定</time>
+              <div>
+                <strong>小智用户 {{ link.xiaozhi_user_id }}</strong>
+                <p>
+                  记入当前照护账号
+                  {% if elder_username %}「{{ elder_username }}」{% elif user %}「{{ user.username }}」{% endif %}
+                  {% if link.xiaozhi_agent_id %} · Agent {{ link.xiaozhi_agent_id }}{% endif %}
+                  {% if link.last_seen_at %} · 最近同步 {{ link.last_seen_at }}{% else %} · 绑定于 {{ link.created_at }}{% endif %}
+                </p>
+                <form method="post" action="{{ url_for('settings_mcp_token') }}" class="inline-unbind">
+                  <input type="hidden" name="action" value="unbind_xiaozhi" />
+                  <input type="hidden" name="xiaozhi_user_id" value="{{ link.xiaozhi_user_id }}" />
+                  <button type="submit" class="btn-ghost">解除绑定</button>
+                </form>
               </div>
             </li>
             {% endfor %}
           </ul>
-        </section>
+          {% else %}
+          <p class="stat-note"><strong>尚未绑定。</strong>请先用要记事项的账号登录（例如 15），再填写 UserId 绑定。</p>
+          {% endif %}
 
-        <section class="panel voice-matters-panel" data-speak-card>
-          <header class="panel-header compact speak-toolbar">
-            <div>
-              <h2>语音事项</h2>
-              <p>小智帮忙记下的事，会同步到这里；完成后状态会更新。</p>
-            </div>
-            <button type="button" class="speak-btn">🔊 大声朗读</button>
-          </header>
-          <ul class="task-list voice-matters-list" data-speak-text>
-            {% if voice_matters %}
-              {% for m in voice_matters %}
-              <li class="task-item {% if m.status == 'done' %}is-done{% endif %}">
-                <time>{{ m.status_label }}</time>
-                <div>
-                  <strong>{{ m.body }}</strong>
-                  <p>
-                    {{ m.created_at }}
-                    {% if m.completed_at %} · 完成于 {{ m.completed_at }}{% endif %}
-                  </p>
-                </div>
-              </li>
-              {% endfor %}
-            {% else %}
-              <li class="task-item">
-                <div>
-                  <strong>还没有语音事项</strong>
-                  <p>对小智说「帮我记一下……」，就会出现在这里。</p>
-                </div>
-              </li>
-            {% endif %}
-          </ul>
-        </section>
+          <form method="post" action="{{ url_for('settings_mcp_token') }}" class="auth-form mcp-bind-form">
+            <input type="hidden" name="action" value="bind_xiaozhi" />
+            <label class="field">
+              <span>小智 UserId</span>
+              <input type="text" name="xiaozhi_user_id" placeholder="例如 1016444" required />
+            </label>
+            <label class="field">
+              <span>AgentId（可选）</span>
+              <input type="text" name="xiaozhi_agent_id" placeholder="例如 2161930" />
+            </label>
+            <button type="submit" class="btn-primary btn-inline">手动绑定到当前账号</button>
+          </form>
 
-        <section class="panel mcp-token-panel" data-speak-card>
-          <header class="panel-header compact speak-toolbar">
-            <div>
-              <h2>小智账号绑定</h2>
-              <p>请手动填写小智 UserId，绑定后语音事项才会记到本账号。</p>
-            </div>
-            <button type="button" class="speak-btn">🔊 大声朗读</button>
-          </header>
-          <div class="mcp-token-body" data-speak-text>
-            <p class="stat-note">
-              UserId 可在小智控制台或接入点 Token 中查看（JWT 里的 <code>userId</code>）。
-              绑定完成后，请保持 MCP 使用全局 <code>WEBSITE_MCP_TOKEN</code>，桥接会自动带上该 UserId。
-            </p>
-
-            {% if xiaozhi_links %}
-            <ul class="task-list">
-              {% for link in xiaozhi_links %}
-              <li class="task-item">
-                <time>已绑定</time>
-                <div>
-                  <strong>小智用户 {{ link.xiaozhi_user_id }}</strong>
-                  <p>
-                    记入当前照护账号
-                    {% if elder_username %}「{{ elder_username }}」{% elif user %}「{{ user.username }}」{% endif %}
-                    {% if link.xiaozhi_agent_id %} · Agent {{ link.xiaozhi_agent_id }}{% endif %}
-                    {% if link.last_seen_at %} · 最近同步 {{ link.last_seen_at }}{% else %} · 绑定于 {{ link.created_at }}{% endif %}
-                  </p>
-                  <form method="post" action="{{ url_for('settings_mcp_token') }}" class="inline-unbind">
-                    <input type="hidden" name="action" value="unbind_xiaozhi" />
-                    <input type="hidden" name="xiaozhi_user_id" value="{{ link.xiaozhi_user_id }}" />
-                    <button type="submit" class="btn-ghost">解除绑定</button>
-                  </form>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
-            {% else %}
-            <p class="stat-note"><strong>尚未绑定。</strong>请先用要记事项的账号登录（例如 15），再填写 UserId 绑定。</p>
-            {% endif %}
-
-            <form method="post" action="{{ url_for('settings_mcp_token') }}" class="auth-form mcp-bind-form">
-              <input type="hidden" name="action" value="bind_xiaozhi" />
-              <label class="field">
-                <span>小智 UserId</span>
-                <input type="text" name="xiaozhi_user_id" placeholder="例如 1016444" required />
-              </label>
-              <label class="field">
-                <span>AgentId（可选）</span>
-                <input type="text" name="xiaozhi_agent_id" placeholder="例如 2161930" />
-              </label>
-              <button type="submit" class="btn-primary btn-inline">手动绑定到当前账号</button>
+          <details class="mcp-token-advanced">
+            <summary>高级：个人语音同步密钥</summary>
+            <p class="stat-note">若不用共用桥接，也可把此密钥直接填到 <code>WEBSITE_MCP_TOKEN</code>。</p>
+            <code class="api-snippet mcp-token-value" id="mcp-token-value">{{ mcp_token or '登录后自动生成' }}</code>
+            <form method="post" action="{{ url_for('settings_mcp_token') }}">
+              <input type="hidden" name="action" value="rotate" />
+              <button type="submit" class="btn-ghost">更换密钥</button>
             </form>
-
-            <details class="mcp-token-advanced">
-              <summary>高级：个人语音同步密钥</summary>
-              <p class="stat-note">若不用共用桥接，也可把此密钥直接填到 <code>WEBSITE_MCP_TOKEN</code>。</p>
-              <code class="api-snippet mcp-token-value" id="mcp-token-value">{{ mcp_token or '登录后自动生成' }}</code>
-              <form method="post" action="{{ url_for('settings_mcp_token') }}">
-                <input type="hidden" name="action" value="rotate" />
-                <button type="submit" class="btn-ghost">更换密钥</button>
-              </form>
-            </details>
-          </div>
-        </section>
-
-        <section class="panel tips-panel" data-speak-card>
-          <header class="panel-header compact speak-toolbar">
-            <div>
-              <h2>{% if role == 'family' %}给家属的小提醒{% else %}温柔小提醒{% endif %}</h2>
-            </div>
-            <button type="button" class="speak-btn">🔊 大声朗读</button>
-          </header>
-          <ul class="tips-list" data-speak-text>
-            {% if role == 'family' %}
-            <li>用药尽量固定时间，服完后在清单里点一下，方便核对。</li>
-            <li>复杂事情拆成多步，老人一次只看当前一步。</li>
-            <li>安全告警请优先处理；记忆训练请在老人账号完成。</li>
-            {% else %}
-            <li>一次只问一件事，慢慢等回答，不急着纠正。</li>
-            <li>没有倒计时，也没有错题惩罚，说出来就很好。</li>
-            <li>这里是陪伴练习，不能代替医生面诊与处方。</li>
-            {% endif %}
-          </ul>
-        </section>
-      </aside>
+          </details>
+        </div>
+      </section>
     </div>
   </main>
 </div>
