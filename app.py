@@ -460,6 +460,7 @@ def ensure_db_and_protect():
         "api_mcp_matters_complete",
         "api_mcp_meds_today",
         "api_mcp_meds_taken",
+        "api_mcp_today_agenda",
         "api_mcp_whoami",
     }
     if request.endpoint in open_endpoints or request.endpoint is None:
@@ -1023,6 +1024,68 @@ def api_mcp_meds_today():
             "plan": plan,
             "pending": pending,
             "summary": summary,
+            "speak": speak,
+        }
+    )
+
+
+@app.route("/api/mcp/today", methods=["GET"])
+@mcp_token_required
+def api_mcp_today_agenda():
+    """今日安排：一次返回待办 + 用药，供小智合并口述。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+
+    matters = list_matters(db, elder_id, status="open", limit=30)
+    plan = today_plan(db, elder_id)
+    pending_meds = [p for p in plan if p.get("pending")]
+
+    matter_lines = []
+    for i, m in enumerate(matters, 1):
+        due = m.get("due_at_label") or ""
+        due_part = f"（提醒 {due}）" if due else ""
+        matter_lines.append(f"{i}. {m.get('body')}{due_part}")
+
+    med_lines = []
+    for p in plan:
+        name = p.get("display_name") or p.get("name") or "药品"
+        dose = p.get("dose") or ""
+        st = p.get("status_label") or p.get("status") or ""
+        tm = p.get("time") or p.get("schedule_time") or ""
+        med_lines.append(f"{tm} {name} {dose}（{st}）".strip())
+
+    parts: list[str] = ["今天要做的事如下。"]
+
+    if matter_lines:
+        parts.append("【代办】共 " + str(len(matter_lines)) + " 件：" + "；".join(matter_lines) + "。")
+    else:
+        parts.append("【代办】目前没有未完成的代办。")
+
+    if med_lines:
+        parts.append("【用药】" + "；".join(med_lines) + "。")
+        if pending_meds:
+            parts.append(
+                "其中还没吃的有："
+                + "、".join(
+                    (x.get("display_name") or x.get("name") or "药") for x in pending_meds
+                )
+                + "。"
+            )
+        else:
+            parts.append("目前该吃的药都已记录完成。")
+    else:
+        parts.append("【用药】今天没有安排用药。")
+
+    speak = "".join(parts)
+    return jsonify(
+        {
+            "ok": True,
+            "matters": matters,
+            "matters_count": len(matters),
+            "medication_plan": plan,
+            "medication_pending": pending_meds,
             "speak": speak,
         }
     )

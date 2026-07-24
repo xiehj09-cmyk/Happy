@@ -245,7 +245,7 @@ module.exports = {
 
     server.tool(
       "voice_note_query",
-      "查询老人代办清单：优先查网站。用于「我有哪些事要做」「下午有什么安排」。",
+      "仅查询代办清单（不含用药）。若用户问「今天要做什么 / 今天有什么安排」，请改用 today_agenda_query。",
       {
         keyword: z.string().optional().describe("可选关键词"),
         limit: z.number().int().min(1).max(50).optional().describe("最多条数，默认 10"),
@@ -300,10 +300,39 @@ module.exports = {
       }
     );
 
+    /** 今日总览：代办 + 用药一次性回答 */
+    server.tool(
+      "today_agenda_query",
+      "查询「今天要做什么」：一次返回全部待办事项和今日用药计划，合并成一段话。用户问今天有什么事、今天安排、今天要注意什么时优先调用本工具（不要拆成两次查询）。",
+      {},
+      async () => {
+        try {
+          const data = await apiRequest("GET", "/api/mcp/today");
+          return okText(data.speak || "今天暂时没有代办和用药安排。");
+        } catch (e) {
+          // 回退：分别拉代办与用药，再本地拼接
+          const parts = ["今天要做的事如下。"];
+          try {
+            const matters = await apiRequest("GET", "/api/mcp/matters?status=open&limit=30");
+            parts.push(matters.speak || "【代办】暂无。");
+          } catch (err) {
+            parts.push("【代办】暂时查不到：" + ((err && err.message) || err));
+          }
+          try {
+            const meds = await apiRequest("GET", "/api/mcp/medication/today");
+            parts.push("【用药】" + (meds.speak || "今天没有用药安排。"));
+          } catch (err) {
+            parts.push("【用药】暂时查不到：" + ((err && err.message) || err));
+          }
+          return okText(parts.join("\n"));
+        }
+      }
+    );
+
     /** 2. 今日要吃什么药 → 网站用药 */
     server.tool(
       "today_medication_query",
-      "查询记忆港湾网站中「今天要吃什么药」。当用户问今日用药、还有哪些药没吃时调用。",
+      "仅查询今日用药（不含代办）。若用户问「今天要做什么 / 今天有什么安排」，请改用 today_agenda_query。",
       {},
       async () => {
         try {
