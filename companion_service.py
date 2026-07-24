@@ -54,12 +54,34 @@ def run_companion_chat(
     )
 
     try:
-        msg = call_deepseek_chat(messages, tools=None, json_mode=False, temperature=0.65, max_tokens=600)
+        msg = call_deepseek_chat(
+            messages,
+            tools=None,
+            json_mode=False,
+            temperature=0.65,
+            max_tokens=500,
+        )
         reply = (msg.get("content") or "").strip() or "我在听，您慢慢说就好。"
+        # 若用户明显想改任务/用药，温柔提示去专用入口（本页不做工具调用）
+        lowered = text.replace(" ", "")
+        if any(k in lowered for k in ("任务清单", "加任务", "添加任务", "记一下任务", "用药", "吃药")):
+            if "任务" in lowered or "吃药" in lowered or "用药" in lowered:
+                reply = (
+                    reply.rstrip()
+                    + "\n\n若要真正写入任务或用药提醒，请打开「任务清单」或右下角「需要帮助？」，我这里主要陪您聊聊天。"
+                )
         return {"ok": True, "reply": reply, "disclaimer": DISCLAIMER}
     except Exception as exc:  # noqa: BLE001
+        err = str(exc)
+        tip = "暂时连不上陪伴助手"
+        if "API 错误 401" in err or "Unauthorized" in err:
+            tip = "DeepSeek 密钥无效，请在 Zeabur 检查 DEEPSEEK_API_KEY"
+        elif "API 错误 402" in err or "Insufficient" in err:
+            tip = "DeepSeek 余额不足，请充值后再试"
+        elif "timed out" in err.lower() or "timeout" in err.lower():
+            tip = "连接 DeepSeek 超时，请稍后重试"
         return {
             "ok": False,
-            "reply": f"暂时连不上陪伴助手：{exc}",
+            "reply": f"{tip}：{err[:240]}",
             "disclaimer": DISCLAIMER,
         }

@@ -194,21 +194,26 @@ def handle_500(err):
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("user_id"):
-            flash("请先登录后再访问网站。", "warning")
+        wants_json = request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json"
+
+        def _deny(message: str, code: int = 401):
+            if wants_json:
+                return jsonify({"ok": False, "error": message, "reply": message}), code
+            flash(message, "warning")
             return redirect(url_for("login", next=request.path))
+
+        if not session.get("user_id"):
+            return _deny("请先登录后再访问。")
         # Zeabur 重部署后库可能被清空，旧 Cookie 会导致后续页面 500
         user = load_current_user()
         if user is None:
             session.clear()
-            flash("登录已失效（账号数据已更新），请重新登录或注册。", "warning")
-            return redirect(url_for("login", next=request.path))
+            return _deny("登录已失效（账号数据已更新），请重新登录或注册。")
         if session.get("role") == ROLE_FAMILY:
             elder_id = session.get("elder_user_id")
             if not elder_id or not _user_exists(int(elder_id)):
                 session.clear()
-                flash("绑定的老人账号不存在，请重新用家属账号登录。", "warning")
-                return redirect(url_for("login", next=request.path))
+                return _deny("绑定的老人账号不存在，请重新用家属账号登录。")
         return view(*args, **kwargs)
 
     return wrapped
@@ -1237,12 +1242,16 @@ def api_companion_chat():
     data = request.get_json(silent=True) or {}
     message = (data.get("message") or "").strip()
     history = data.get("history") if isinstance(data.get("history"), list) else []
-    result = run_companion_chat(
-        message=message,
-        username=session.get("username") or "",
-        history=history,
-    )
-    status = 200 if result.get("ok") else 400
+    try:
+        result = run_companion_chat(
+            message=message,
+            username=session.get("username") or "",
+            history=history,
+        )
+    except Exception as exc:  # noqa: BLE001
+        app.logger.exception("companion chat failed: %s", exc)
+        return jsonify({"ok": False, "reply": f"陪伴服务异常：{exc}"}), 500
+    status = 200 if result.get("ok") else 502
     return jsonify(result), status
 
 
