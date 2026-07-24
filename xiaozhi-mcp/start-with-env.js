@@ -1,5 +1,8 @@
 /**
  * 启动小智 MCP：优先读环境变量（Docker），其次读本目录 .env
+ * 默认走稳定桥接（start-stable-bridge.js），避免 mcp_exe 热重载双连接与
+ * "Already connected to a transport" 问题。
+ * 设置 MCP_USE_LEGACY_EXE=1 可回退到原 mcp_exe CLI。
  */
 const fs = require("fs");
 const path = require("path");
@@ -42,54 +45,69 @@ if (!process.env.MCP_API_TOKEN && process.env.WEBSITE_MCP_TOKEN) {
   process.env.MCP_API_TOKEN = process.env.WEBSITE_MCP_TOKEN;
 }
 
-const localBin = path.join(
-  __dirname,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "mcp_exe.cmd" : "mcp_exe"
-);
-const useLocal = fs.existsSync(localBin);
-const cmd = useLocal ? localBin : process.platform === "win32" ? "npx.cmd" : "npx";
-const args = useLocal
-  ? [
-      "--ws",
-      endpoint,
-      "--mcp-config",
-      "./mcp-config.json",
-      "--mcp-js",
-      "./custom-mcp.js",
-      "--server-name",
-      "memory-harbor-xiaozhi",
-      "--log-level",
-      "INFO",
-    ]
-  : [
-      "--yes",
-      "mcp_exe",
-      "--ws",
-      endpoint,
-      "--mcp-config",
-      "./mcp-config.json",
-      "--mcp-js",
-      "./custom-mcp.js",
-      "--server-name",
-      "memory-harbor-xiaozhi",
-      "--log-level",
-      "INFO",
-    ];
+const useLegacy = process.env.MCP_USE_LEGACY_EXE === "1";
 
-console.log(
-  "启动小智 MCP · 网站=" +
-    (process.env.WEBSITE_BASE || "http://127.0.0.1:5000") +
-    " · " +
-    (useLocal ? "本地 mcp_exe" : "npx mcp_exe")
-);
+if (!useLegacy) {
+  console.log(
+    "启动小智 MCP（稳定桥接）· 网站=" +
+      (process.env.WEBSITE_BASE || "http://127.0.0.1:5000")
+  );
+  const child = spawn(process.execPath, [path.join(__dirname, "start-stable-bridge.js")], {
+    cwd: __dirname,
+    stdio: "inherit",
+    env: process.env,
+  });
+  child.on("exit", (code) => process.exit(code || 0));
+} else {
+  const localBin = path.join(
+    __dirname,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "mcp_exe.cmd" : "mcp_exe"
+  );
+  const useLocal = fs.existsSync(localBin);
+  const cmd = useLocal ? localBin : process.platform === "win32" ? "npx.cmd" : "npx";
+  const args = useLocal
+    ? [
+        "--ws",
+        endpoint,
+        "--mcp-config",
+        "./mcp-config.json",
+        "--mcp-js",
+        "./custom-mcp.js",
+        "--server-name",
+        "memory-harbor-xiaozhi",
+        "--log-level",
+        "INFO",
+      ]
+    : [
+        "--yes",
+        "mcp_exe",
+        "--ws",
+        endpoint,
+        "--mcp-config",
+        "./mcp-config.json",
+        "--mcp-js",
+        "./custom-mcp.js",
+        "--server-name",
+        "memory-harbor-xiaozhi",
+        "--log-level",
+        "INFO",
+      ];
 
-const child = spawn(cmd, args, {
-  cwd: __dirname,
-  stdio: "inherit",
-  shell: process.platform === "win32",
-  env: process.env,
-});
+  console.log(
+    "启动小智 MCP（legacy mcp_exe）· 网站=" +
+      (process.env.WEBSITE_BASE || "http://127.0.0.1:5000") +
+      " · " +
+      (useLocal ? "本地 mcp_exe" : "npx mcp_exe")
+  );
 
-child.on("exit", (code) => process.exit(code || 0));
+  const child = spawn(cmd, args, {
+    cwd: __dirname,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    env: process.env,
+  });
+
+  child.on("exit", (code) => process.exit(code || 0));
+}

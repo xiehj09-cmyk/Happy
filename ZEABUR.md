@@ -32,13 +32,16 @@ XIAOZHI_MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=你的最新接入点
 6. Deploy / Redeploy  
 7. 打开域名确认账号可用；小智绑定请粘贴 MCP 接入点 Token
 
-日志里应出现：`成功连接到WebSocket服务器` / `MCP服务器启动成功`。
+日志里应出现：`稳定桥接启动` → `成功连接到WebSocket服务器` → `MCP服务器启动成功`。
 
 说明：
 - `DATA_DIR=/data`：账号库写入挂载盘 `/data/users.db`（也可用环境变量覆盖）
 - `MCP_ELDER_USERNAME=15`：所有经全局 `MCP_API_TOKEN` 进来的小智请求都写入账号 15
 - `WEBSITE_BASE` 由入口脚本自动设为 `http://127.0.0.1:$PORT`，Variables 里可不写
 - 构建使用「从官方 `node` 镜像拷贝」方式安装 Node，避免 NodeSource apt 在 Zeabur 构建失败
+- MCP 使用 `start-stable-bridge.js`（每次连接新建 Protocol，并禁用配置文件热重载），避免 `Already connected to a transport`
+- 同一接入点只能有一条桥：关掉本机 `npm run xiaozhi`，Zeabur 也只保留**一个**带 MCP 的服务
+- 接入点 Token 过期时，到小智控制台重新复制并更新 `XIAOZHI_MCP_ENDPOINT` 后 Redeploy
 - 不要把 Token 提交到 Git
 
 若构建仍失败：请把日志里带 `ERROR` / `failed` 的完整段落贴出（你上次贴到的只是 pip 成功，真正报错通常在后面的 `npm install` 或启动阶段）。
