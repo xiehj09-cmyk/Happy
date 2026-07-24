@@ -9,7 +9,6 @@
 
 const fs = require("fs");
 const path = require("path");
-const WebSocket = require("ws");
 
 // 必须在加载 mcp_exe 之前禁用热重载监听
 const _watchFile = fs.watchFile.bind(fs);
@@ -29,12 +28,21 @@ fs.watchFile = function watchFileDisabled(filename, ...rest) {
   return _watchFile(filename, ...rest);
 };
 
-const {
-  McpRouterServer,
-} = require("mcp_exe/dist/mcpRouterServer.js");
+// mcp_exe 的 package.json exports 只暴露 "."，不能 require('mcp_exe/dist/...')
+// 用绝对路径加载内部模块（绕过 exports 限制）
+const mcpExeDist = path.dirname(require.resolve("mcp_exe"));
+const mcpExeRoot = path.join(mcpExeDist, "..");
+const { McpRouterServer } = require(path.join(mcpExeDist, "mcpRouterServer.js"));
 const {
   WebSocketServerTransport,
-} = require("mcp_exe/dist/webSocketTransport.js");
+} = require(path.join(mcpExeDist, "webSocketTransport.js"));
+const WebSocket = (() => {
+  try {
+    return require("ws");
+  } catch (_) {
+    return require(path.join(mcpExeRoot, "node_modules", "ws"));
+  }
+})();
 
 const INITIAL_BACKOFF = 1000;
 const MAX_BACKOFF = 120000;
