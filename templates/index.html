@@ -234,21 +234,35 @@
         <header class="panel-header compact">
           <div>
             <h2>小智账号绑定</h2>
+            {% if env_force_bind %}
+            <p>当前为单用户强制绑定：环境变量中的小智已固定写入账号「{{ env_force_elder_username }}」。</p>
+            {% else %}
             <p>粘贴小智控制台「MCP 接入点」完整地址（含 Token），绑定后语音事项会记到本账号。</p>
+            {% endif %}
           </div>
         </header>
         <div class="mcp-token-body">
+          {% if env_force_bind %}
+          <p class="stat-note">
+            <strong>强制绑定已生效。</strong>
+            小智用户 <code>{{ env_force_xiaozhi_user_id }}</code>
+            {% if env_force_xiaozhi_agent_id %} · Agent <code>{{ env_force_xiaozhi_agent_id }}</code>{% endif %}
+            → 记忆港湾账号 <code>{{ env_force_elder_username }}</code>
+            （来自 <code>XIAOZHI_MCP_ENDPOINT</code> / <code>MCP_ELDER_USERNAME</code>，无法在此解除）。
+          </p>
+          {% else %}
           <p class="stat-note">
             在小智 → 智能体配置 → 扩展能力 → MCP 接入点，复制
             <code>wss://api.xiaozhi.me/mcp/?token=...</code>
             整段粘贴下方即可（系统会自动解析 userId）。
           </p>
+          {% endif %}
 
           {% if xiaozhi_links %}
           <ul class="task-list">
             {% for link in xiaozhi_links %}
             <li class="task-item">
-              <time>已绑定</time>
+              <time>{% if env_force_bind and link.xiaozhi_user_id == env_force_xiaozhi_user_id %}强制绑定{% else %}已绑定{% endif %}</time>
               <div>
                 <strong>小智用户 {{ link.xiaozhi_user_id }}</strong>
                 <p>
@@ -257,19 +271,22 @@
                   {% if link.xiaozhi_agent_id %} · Agent {{ link.xiaozhi_agent_id }}{% endif %}
                   {% if link.last_seen_at %} · 最近同步 {{ link.last_seen_at }}{% else %} · 绑定于 {{ link.created_at }}{% endif %}
                 </p>
+                {% if not env_force_bind or link.xiaozhi_user_id != env_force_xiaozhi_user_id %}
                 <form method="post" action="{{ url_for('settings_mcp_token') }}" class="inline-unbind">
                   <input type="hidden" name="action" value="unbind_xiaozhi" />
                   <input type="hidden" name="xiaozhi_user_id" value="{{ link.xiaozhi_user_id }}" />
                   <button type="submit" class="btn-ghost">解除绑定</button>
                 </form>
+                {% endif %}
               </div>
             </li>
             {% endfor %}
           </ul>
-          {% else %}
+          {% elif not env_force_bind %}
           <p class="stat-note"><strong>尚未绑定。</strong>请用要记事项的账号登录，再粘贴最新 MCP 接入点。</p>
           {% endif %}
 
+          {% if not env_force_bind %}
           <form method="post" action="{{ url_for('settings_mcp_token') }}" class="auth-form mcp-bind-form">
             <input type="hidden" name="action" value="bind_xiaozhi" />
             <label class="field">
@@ -278,6 +295,7 @@
             </label>
             <button type="submit" class="btn-primary btn-inline">用 Token 绑定到当前账号</button>
           </form>
+          {% endif %}
 
           <details class="mcp-token-advanced">
             <summary>高级：个人语音同步密钥</summary>

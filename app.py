@@ -66,11 +66,14 @@ from config import (
     PORT,
     SECRET_KEY,
     THREADS,
+    XIAOZHI_AGENT_ID,
+    XIAOZHI_USER_ID,
 )
 from companion_service import run_companion_chat
 from med_ai_service import deepseek_configured, process_smart_add
 from mcp_user_service import (
     bind_xiaozhi_user,
+    ensure_env_forced_xiaozhi_bind,
     ensure_mcp_user_schema,
     ensure_user_mcp_token,
     list_xiaozhi_links_for_elder,
@@ -201,6 +204,52 @@ def init_db() -> None:
     ensure_medication_tables(db)
     ensure_task_tables(db)
     ensure_voice_matter_tables(db)
+    # 单用户强制绑定：环境变量小智 ↔ MCP_ELDER_USERNAME（如 15）
+    if MCP_ELDER_USERNAME or MCP_ELDER_USER_ID:
+        if XIAOZHI_USER_ID:
+            result = ensure_env_forced_xiaozhi_bind(
+                db,
+                elder_username=MCP_ELDER_USERNAME,
+                elder_user_id=MCP_ELDER_USER_ID,
+                xiaozhi_user_id=XIAOZHI_USER_ID,
+                xiaozhi_agent_id=XIAOZHI_AGENT_ID,
+            )
+            if result.get("ok"):
+                app.logger.info(
+                    "forced Xiaozhi bind: userId=%s agentId=%s -> @%s (elder_id=%s)",
+                    result.get("xiaozhi_user_id"),
+                    result.get("xiaozhi_agent_id") or "-",
+                    result.get("username"),
+                    result.get("elder_user_id"),
+                )
+            else:
+                app.logger.warning(
+                    "forced Xiaozhi bind skipped: %s",
+                    result.get("message") or result.get("error"),
+                )
+        else:
+            app.logger.warning(
+                "MCP_ELDER_USERNAME=%s set but XIAOZHI_USER_ID empty "
+                "(set XIAOZHI_MCP_ENDPOINT or XIAOZHI_USER_ID)",
+                MCP_ELDER_USERNAME or MCP_ELDER_USER_ID,
+            )
+
+
+def env_force_bind_active() -> bool:
+    """是否启用「环境变量单用户强制绑定」。"""
+    return bool((MCP_ELDER_USERNAME or MCP_ELDER_USER_ID) and XIAOZHI_USER_ID)
+
+
+def xiaozhi_bind_template_vars() -> dict:
+    """工作台小智绑定区块所需变量。"""
+    return {
+        "env_force_bind": env_force_bind_active(),
+        "env_force_xiaozhi_user_id": XIAOZHI_USER_ID or "",
+        "env_force_xiaozhi_agent_id": XIAOZHI_AGENT_ID or "",
+        "env_force_elder_username": MCP_ELDER_USERNAME or (
+            str(MCP_ELDER_USER_ID) if MCP_ELDER_USER_ID else ""
+        ),
+    }
 
 
 @app.errorhandler(500)
@@ -278,6 +327,9 @@ def mcp_token_required(view):
             if isinstance(body, dict):
                 xiaozhi_user_id = xiaozhi_user_id or str(body.get("xiaozhi_user_id") or "").strip()
                 xiaozhi_agent_id = xiaozhi_agent_id or str(body.get("xiaozhi_agent_id") or "").strip()
+        # 单用户模式：请求未带小智 Id 时，用环境变量强制身份
+        xiaozhi_user_id = xiaozhi_user_id or XIAOZHI_USER_ID
+        xiaozhi_agent_id = xiaozhi_agent_id or XIAOZHI_AGENT_ID
 
         fallback_elder_id = resolve_configured_elder_id(
             db,
@@ -576,6 +628,7 @@ def dashboard():
             voice_matters=voice_matters,
             mcp_token=mcp_token,
             xiaozhi_links=xiaozhi_links,
+            **xiaozhi_bind_template_vars(),
         )
 
     modules = [
@@ -635,6 +688,7 @@ def dashboard():
         voice_matters=list_matters(db, elder_id, status=None, limit=15),
         mcp_token=mcp_token,
         xiaozhi_links=xiaozhi_links,
+        **xiaozhi_bind_template_vars(),
     )
 
 
@@ -1036,6 +1090,12 @@ def settings_mcp_token():
         rotate_user_mcp_token(db, int(user["id"]))
         flash("已生成新的语音同步密钥，请同步更新小智 MCP 配置。", "success")
     elif action == "bind_xiaozhi":
+        if env_force_bind_active():
+            flash(
+                f"已启用环境变量强制绑定（小智 {XIAOZHI_USER_ID} → 账号「{MCP_ELDER_USERNAME or MCP_ELDER_USER_ID}」），无需手动绑定。",
+                "warning",
+            )
+            return redirect(url_for("dashboard"))
         raw_token = (
             request.form.get("xiaozhi_token")
             or request.form.get("xiaozhi_user_id")
@@ -1059,6 +1119,12 @@ def settings_mcp_token():
             flash(str(exc), "danger")
     elif action == "unbind_xiaozhi":
         xid = (request.form.get("xiaozhi_user_id") or "").strip()
+        if env_force_bind_active() and xid == XIAOZHI_USER_ID:
+            flash(
+                f"小智用户 {xid} 由环境变量强制绑定到「{MCP_ELDER_USERNAME or MCP_ELDER_USER_ID}」，不能解除。",
+                "warning",
+            )
+            return redirect(url_for("dashboard"))
         if unbind_xiaozhi_user(db, int(elder_id), xid):
             flash(f"已解除与小智用户 {xid} 的绑定。", "success")
         else:

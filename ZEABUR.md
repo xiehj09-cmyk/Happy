@@ -36,7 +36,8 @@ XIAOZHI_MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=你的最新接入点
 
 说明：
 - `DATA_DIR=/data`：账号库写入挂载盘 `/data/users.db`（也可用环境变量覆盖）
-- `MCP_ELDER_USERNAME=15`：所有经全局 `MCP_API_TOKEN` 进来的小智请求都写入账号 15
+- `MCP_ELDER_USERNAME=15`：启动时把 `XIAOZHI_MCP_ENDPOINT` 里的小智 UserId **强制绑定**到账号 15；所有经全局 `MCP_API_TOKEN` 进来的请求都写入该账号
+- 工作台会显示「强制绑定」，该绑定不可在网页解除；改绑请改 Zeabur 环境变量后 Redeploy
 - `WEBSITE_BASE` 由入口脚本自动设为 `http://127.0.0.1:$PORT`，Variables 里可不写
 - 构建使用「从官方 `node` 镜像拷贝」方式安装 Node，避免 NodeSource apt 在 Zeabur 构建失败
 - MCP 使用 `start-stable-bridge.js`（每次连接新建 Protocol，并禁用配置文件热重载），避免 `Already connected to a transport`

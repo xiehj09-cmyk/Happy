@@ -336,6 +336,61 @@ def force_bind_xiaozhi_to_elder(
     bind_xiaozhi_user(db, int(elder_user_id), xid, agent_id=agent_id)
 
 
+def ensure_env_forced_xiaozhi_bind(
+    db: sqlite3.Connection,
+    *,
+    elder_username: str = "",
+    elder_user_id: int = 0,
+    xiaozhi_user_id: str = "",
+    xiaozhi_agent_id: str = "",
+    exclusive: bool = True,
+) -> dict[str, Any]:
+    """
+    单用户强制绑定：把环境变量里的小智 UserId 永久绑到指定账号（如用户名 15）。
+    启动 / 每次请求都会幂等执行。
+    """
+    xid = str(xiaozhi_user_id or "").strip()
+    agent = str(xiaozhi_agent_id or "").strip() or None
+    if not xid:
+        return {"ok": False, "error": "missing_xiaozhi_user_id"}
+
+    elder_id = resolve_configured_elder_id(
+        db, username=elder_username, user_id=elder_user_id
+    )
+    if not elder_id:
+        return {
+            "ok": False,
+            "error": "elder_not_found",
+            "message": f"找不到强制绑定账号（username={elder_username or '-'} id={elder_user_id or 0}）",
+            "xiaozhi_user_id": xid,
+        }
+
+    force_bind_xiaozhi_to_elder(db, elder_id, xid, agent_id=agent)
+
+    if exclusive:
+        # 该老人只保留这一条环境变量指定的小智绑定
+        db.execute(
+            """
+            DELETE FROM xiaozhi_user_links
+            WHERE elder_user_id = ? AND xiaozhi_user_id != ?
+            """,
+            (int(elder_id), xid),
+        )
+        db.commit()
+
+    row = db.execute(
+        "SELECT username FROM users WHERE id = ?", (int(elder_id),)
+    ).fetchone()
+    return {
+        "ok": True,
+        "elder_user_id": int(elder_id),
+        "username": row["username"] if row else None,
+        "xiaozhi_user_id": xid,
+        "xiaozhi_agent_id": agent or "",
+        "forced": True,
+    }
+
+
 def resolve_mcp_identity(
     db: sqlite3.Connection,
     bearer_token: str,

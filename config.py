@@ -66,3 +66,42 @@ MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "").strip()
 MCP_ELDER_USERNAME = os.environ.get("MCP_ELDER_USERNAME", "").strip()
 MCP_ELDER_USER_ID = int(os.environ.get("MCP_ELDER_USER_ID", "0") or "0")
 MCP_API_BASE = os.environ.get("MCP_API_BASE", "http://127.0.0.1:5000").rstrip("/")
+
+# 环境变量中的小智身份（可直接填；也可从 XIAOZHI_MCP_ENDPOINT 的 JWT 自动解析）
+XIAOZHI_MCP_ENDPOINT = os.environ.get("XIAOZHI_MCP_ENDPOINT", "").strip()
+XIAOZHI_USER_ID = os.environ.get("XIAOZHI_USER_ID", "").strip()
+XIAOZHI_AGENT_ID = os.environ.get("XIAOZHI_AGENT_ID", "").strip()
+
+
+def _parse_xiaozhi_ids_from_endpoint(endpoint: str) -> tuple[str, str]:
+    """从 wss://...?token=JWT 解析 userId / agentId，失败返回空串。"""
+    if not endpoint:
+        return "", ""
+    try:
+        import base64
+        import json
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(endpoint)
+        jwt = (parse_qs(parsed.query).get("token") or [""])[0].strip()
+        if not jwt or jwt.count(".") != 2:
+            return "", ""
+        part = jwt.split(".")[1]
+        pad = "=" * ((4 - len(part) % 4) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(part + pad).decode("utf-8"))
+        uid = payload.get("userId")
+        aid = payload.get("agentId")
+        return (
+            str(uid) if uid is not None else "",
+            str(aid) if aid is not None else "",
+        )
+    except Exception:  # noqa: BLE001
+        return "", ""
+
+
+if not XIAOZHI_USER_ID or not XIAOZHI_AGENT_ID:
+    _uid, _aid = _parse_xiaozhi_ids_from_endpoint(XIAOZHI_MCP_ENDPOINT)
+    if not XIAOZHI_USER_ID:
+        XIAOZHI_USER_ID = _uid
+    if not XIAOZHI_AGENT_ID:
+        XIAOZHI_AGENT_ID = _aid
