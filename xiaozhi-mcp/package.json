@@ -7,6 +7,6 @@
     "xiaozhi": "node ./start-with-env.js"
   },
   "dependencies": {
-    "mcp_exe": "^1.0.0"
+    "mcp_exe": "0.12.0"
   }
 }

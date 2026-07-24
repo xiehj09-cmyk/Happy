@@ -3,8 +3,8 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-COPY xiaozhi-mcp/package.json ./
-RUN npm install --omit=dev
+COPY xiaozhi-mcp/package.json xiaozhi-mcp/package-lock.json ./
+RUN npm ci --omit=dev
 
 COPY xiaozhi-mcp/custom-mcp.js xiaozhi-mcp/mcp-config.json xiaozhi-mcp/start-with-env.js ./
 RUN mkdir -p /app/data

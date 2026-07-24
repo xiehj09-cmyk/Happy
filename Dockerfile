@@ -33,9 +33,9 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY xiaozhi-mcp/package.json /app/xiaozhi-mcp/package.json
+COPY xiaozhi-mcp/package.json xiaozhi-mcp/package-lock.json /app/xiaozhi-mcp/
 WORKDIR /app/xiaozhi-mcp
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 WORKDIR /app
 COPY . .
