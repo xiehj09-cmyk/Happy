@@ -21,8 +21,9 @@ services:
       PORT: "8080"
       FLASK_DEBUG: "0"
       MCP_API_BASE: "http://web:8080"
+      DATA_DIR: "/data"
     volumes:
-      - web_instance:/app/instance
+      - web_data:/data
     restart: unless-stopped
     healthcheck:
       test:
@@ -56,5 +57,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  web_instance:
+  web_data:
   mcp_notes:

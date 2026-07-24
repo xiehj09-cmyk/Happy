@@ -39,12 +39,14 @@ RUN npm ci --omit=dev
 
 WORKDIR /app
 COPY . .
-RUN mkdir -p /app/instance /app/xiaozhi-mcp/data \
+RUN mkdir -p /app/instance /app/xiaozhi-mcp/data /data \
   && sed -i 's/\r$//' /app/scripts/docker-entrypoint.sh \
   && chmod +x /app/scripts/docker-entrypoint.sh \
   && test -x /app/scripts/docker-entrypoint.sh \
   && test -f /app/xiaozhi-mcp/start-with-env.js \
   && test -d /app/xiaozhi-mcp/node_modules/mcp_exe
+
+ENV DATA_DIR=/data
 
 EXPOSE 8080
 

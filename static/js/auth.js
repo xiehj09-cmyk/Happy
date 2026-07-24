@@ -20,16 +20,20 @@
   });
 
   function syncElderBind(form) {
-    const panel = form.querySelector("[data-elder-bind]");
-    if (!panel) return;
+    const elderPanel = form.querySelector("[data-elder-bind]");
+    const familyPanel = form.querySelector("[data-family-bind]");
     const role = form.querySelector('input[name="role"]:checked')?.value || "family";
     const isFamily = role === "family";
-    panel.hidden = !isFamily;
+    const isElder = role === "elder";
+    if (elderPanel) elderPanel.hidden = !isFamily;
+    if (familyPanel) familyPanel.hidden = !isElder;
     form.querySelectorAll("[data-elder-required]").forEach((input) => {
       input.required = isFamily;
-      if (!isFamily) {
-        input.removeAttribute("aria-invalid");
-      }
+      if (!isFamily) input.removeAttribute("aria-invalid");
+    });
+    form.querySelectorAll("[data-family-required]").forEach((input) => {
+      input.required = isElder;
+      if (!isElder) input.removeAttribute("aria-invalid");
     });
     const title = form.querySelector("[data-self-title]");
     if (title) {
@@ -112,6 +116,43 @@
         }
         if (elderConfirm && elderPassword && elderPassword.value !== elderConfirm.value) {
           showFieldError(elderConfirm, "两次老人密码不一致。");
+          valid = false;
+        }
+      }
+
+      if (form.dataset.registerForm !== undefined && role === "elder") {
+        const familyUsername = form.querySelector('[name="family_username"]');
+        const familyEmail = form.querySelector('[name="family_email"]');
+        const familyPassword = form.querySelector('[name="family_password"]');
+        const familyConfirm = form.querySelector('[name="family_confirm_password"]');
+        if (familyUsername && !familyUsername.value.trim()) {
+          showFieldError(familyUsername, "请填写家属用户名。");
+          valid = false;
+        }
+        if (
+          familyUsername &&
+          username &&
+          familyUsername.value.trim().toLowerCase() === username.value.trim().toLowerCase()
+        ) {
+          showFieldError(familyUsername, "家属用户名不能与老人用户名相同。");
+          valid = false;
+        }
+        if (familyEmail) {
+          const fe = familyEmail.value.trim();
+          if (!fe) {
+            showFieldError(familyEmail, "请填写家属邮箱。");
+            valid = false;
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fe)) {
+            showFieldError(familyEmail, "家属邮箱格式不正确。");
+            valid = false;
+          }
+        }
+        if (familyPassword && (!familyPassword.value || familyPassword.value.length < 6)) {
+          showFieldError(familyPassword, "家属密码至少 6 位。");
+          valid = false;
+        }
+        if (familyConfirm && familyPassword && familyPassword.value !== familyConfirm.value) {
+          showFieldError(familyConfirm, "两次家属密码不一致。");
           valid = false;
         }
       }

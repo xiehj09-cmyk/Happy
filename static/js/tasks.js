@@ -205,6 +205,7 @@
         <button type="button" class="btn-primary elder-btn" data-elder-done data-step="${currentStepIndex}">做好了</button>
         <button type="button" class="btn-outline elder-btn" data-elder-skip data-step="${currentStepIndex}">跳过</button>
         <button type="button" class="btn-ghost elder-btn" data-elder-pause>先不做了</button>
+        <button type="button" class="btn-primary elder-btn" data-elder-complete-all>整件做完</button>
         <button type="button" class="btn-ghost elder-btn" data-elder-speak>再说一遍</button>
       `;
       bindElderButtons();
@@ -212,7 +213,7 @@
   }
 
   async function elderCall(fn) {
-    if (elderBusy) return;
+    if (elderBusy || !taskId) return;
     elderBusy = true;
     actions?.querySelectorAll("button").forEach((b) => {
       b.disabled = true;
@@ -272,10 +273,16 @@
         })
       );
     });
+    actions?.querySelector("[data-elder-complete-all]")?.addEventListener("click", () => {
+      if (!confirm("确定把这件事的全部步骤都标记为完成？")) return;
+      elderCall(() =>
+        api(`/api/tasks/${taskId}/complete-all`, { action_id: actionId() })
+      );
+    });
     actions?.querySelector("[data-elder-speak]")?.addEventListener("click", () => {
       speak(stepText?.textContent || "");
     });
   }
 
-  bindElderButtons();
+  if (taskId) bindElderButtons();
 })();

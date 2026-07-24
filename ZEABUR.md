@@ -28,13 +28,14 @@ XIAOZHI_MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=你的最新接入点
 ```
 
 4. Networking → Generate Domain  
-5. Volumes → 挂载 `/app/instance`（持久化 SQLite）  
+5. Volumes → 挂载 **`/data`**（持久化 SQLite 账号与业务数据；与图中硬盘挂载一致）  
 6. Deploy / Redeploy  
-7. 打开域名确认账号 **15** 已注册；无需再手动绑定小智（环境变量会把全部小智请求归到 15）
+7. 打开域名确认账号可用；小智绑定请粘贴 MCP 接入点 Token
 
 日志里应出现：`成功连接到WebSocket服务器` / `MCP服务器启动成功`。
 
 说明：
+- `DATA_DIR=/data`：账号库写入挂载盘 `/data/users.db`（也可用环境变量覆盖）
 - `MCP_ELDER_USERNAME=15`：所有经全局 `MCP_API_TOKEN` 进来的小智请求都写入账号 15
 - `WEBSITE_BASE` 由入口脚本自动设为 `http://127.0.0.1:$PORT`，Variables 里可不写
 - 构建使用「从官方 `node` 镜像拷贝」方式安装 Node，避免 NodeSource apt 在 Zeabur 构建失败

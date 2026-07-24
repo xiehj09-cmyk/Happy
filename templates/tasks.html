@@ -243,6 +243,12 @@
 
     {% else %}
     {# ========== 老人端 ========== #}
+    <nav class="med-anchors" aria-label="任务分区">
+      <a href="#elder-focus">当前一步</a>
+      <a href="#create-task">增加任务</a>
+      <a href="#manage-tasks">管理任务</a>
+    </nav>
+
     {% if focus and focus.status != 'completed' %}
     <section class="panel elder-focus-panel" id="elder-focus" data-task-id="{{ focus.task_id }}">
       <header class="elder-focus-head">
@@ -283,19 +289,20 @@
         <button type="button" class="btn-primary elder-btn" data-elder-done data-step="{{ focus.current_step_index }}">做好了</button>
         <button type="button" class="btn-outline elder-btn" data-elder-skip data-step="{{ focus.current_step_index }}">跳过</button>
         <button type="button" class="btn-ghost elder-btn" data-elder-pause>先不做了</button>
+        <button type="button" class="btn-primary elder-btn" data-elder-complete-all>整件做完</button>
         <button type="button" class="btn-ghost elder-btn" data-elder-speak>再说一遍</button>
         {% endif %}
       </div>
     </section>
     {% elif focus and focus.status == 'completed' %}
-    <section class="panel elder-focus-panel">
+    <section class="panel elder-focus-panel" id="elder-focus">
       <h2>太好了，这件事做完了</h2>
       <p class="welcome-desc">今天「{{ focus.title }}」的全部步骤都已完成。</p>
     </section>
     {% else %}
-    <section class="panel elder-focus-panel">
+    <section class="panel elder-focus-panel" id="elder-focus">
       <h2>今天暂时没有安排任务</h2>
-      <p class="welcome-desc">请让家属在「任务清单」里为您创建要做的事。</p>
+      <p class="welcome-desc">可以在下方自己增加要做的事，或请家属帮忙创建。</p>
     </section>
     {% endif %}
 
@@ -319,7 +326,100 @@
         {% endfor %}
       </ul>
       {% else %}
-      <p class="empty-hint">暂无任务。</p>
+      <p class="empty-hint">暂无任务，可在下方「增加任务」里自己添加。</p>
+      {% endif %}
+    </section>
+
+    <section class="panel" id="create-task">
+      <header class="panel-header compact">
+        <div>
+          <h2>增加任务</h2>
+          <p>把一件事拆成几步，做的时候一次只看当前一步。</p>
+        </div>
+      </header>
+      <form class="task-create-form" id="task-create-form" method="post" action="{{ url_for('tasks_create') }}">
+        <div class="form-grid-2">
+          <label>
+            任务名称
+            <input type="text" name="title" maxlength="80" required placeholder="例如：下午三点吃药" />
+          </label>
+          <label>
+            建议时间
+            <input type="time" name="schedule_time" />
+          </label>
+        </div>
+        <label>
+          备注（可选）
+          <input type="text" name="note" maxlength="200" placeholder="可以写给自己看的提醒" />
+        </label>
+        <fieldset class="steps-editor">
+          <legend>步骤（按顺序）</legend>
+          <div id="steps-editor-list">
+            <div class="step-editor-row">
+              <span class="step-editor-num">1</span>
+              <input type="text" name="steps" maxlength="120" required placeholder="拿药" />
+              <button type="button" class="btn-ghost btn-inline" data-remove-step hidden>删除</button>
+            </div>
+            <div class="step-editor-row">
+              <span class="step-editor-num">2</span>
+              <input type="text" name="steps" maxlength="120" required placeholder="倒水" />
+              <button type="button" class="btn-ghost btn-inline" data-remove-step>删除</button>
+            </div>
+            <div class="step-editor-row">
+              <span class="step-editor-num">3</span>
+              <input type="text" name="steps" maxlength="120" required placeholder="吃药" />
+              <button type="button" class="btn-ghost btn-inline" data-remove-step>删除</button>
+            </div>
+          </div>
+          <button type="button" class="btn-outline btn-inline" id="add-step-btn">再加一步</button>
+        </fieldset>
+        <button type="submit" class="btn-primary btn-inline">保存任务</button>
+      </form>
+    </section>
+
+    <section class="panel" id="manage-tasks">
+      <header class="panel-header compact">
+        <div>
+          <h2>管理任务</h2>
+          <p>可以改步骤或停用不需要的任务。</p>
+        </div>
+      </header>
+      {% if templates %}
+      <ul class="task-manage-list">
+        {% for t in templates %}
+        <li class="task-manage-card">
+          <details>
+            <summary>
+              <strong>{{ t.title }}</strong>
+              <span>{% if t.schedule_time %}{{ t.schedule_time }} · {% endif %}{{ t.step_count }} 步</span>
+            </summary>
+            <form method="post" action="{{ url_for('tasks_update', task_id=t.id) }}" class="task-edit-form">
+              <label>名称<input type="text" name="title" value="{{ t.title }}" required maxlength="80" /></label>
+              <label>时间<input type="time" name="schedule_time" value="{{ t.schedule_time or '' }}" /></label>
+              <label>备注<input type="text" name="note" value="{{ t.note or '' }}" maxlength="200" /></label>
+              <fieldset class="steps-editor">
+                <legend>步骤</legend>
+                {% for s in t.steps %}
+                <div class="step-editor-row">
+                  <span class="step-editor-num">{{ loop.index }}</span>
+                  <input type="text" name="steps" value="{{ s }}" maxlength="120" required />
+                </div>
+                {% endfor %}
+              </fieldset>
+              <div class="page-actions">
+                <button type="submit" class="btn-primary btn-inline">保存修改</button>
+              </div>
+            </form>
+            <form method="post" action="{{ url_for('tasks_delete', task_id=t.id) }}" class="inline-unbind"
+                  onsubmit="return confirm('确定停用该任务？');">
+              <button type="submit" class="btn-ghost">停用任务</button>
+            </form>
+          </details>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-hint">还没有可管理的任务。</p>
       {% endif %}
     </section>
     {% endif %}

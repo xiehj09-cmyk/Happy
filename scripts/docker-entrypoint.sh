@@ -12,7 +12,8 @@ if [ -z "${WEBSITE_MCP_TOKEN:-}" ] && [ -n "${MCP_API_TOKEN:-}" ]; then
   export WEBSITE_MCP_TOKEN="$MCP_API_TOKEN"
 fi
 
-echo "[entrypoint] web HOST=$HOST PORT=$PORT_VALUE WEBSITE_BASE=$WEBSITE_BASE"
+echo "[entrypoint] web HOST=$HOST PORT=$PORT_VALUE WEBSITE_BASE=$WEBSITE_BASE DATA_DIR=${DATA_DIR:-/data}"
+mkdir -p "${DATA_DIR:-/data}" /app/xiaozhi-mcp/data
 
 if [ -n "${XIAOZHI_MCP_ENDPOINT:-}" ]; then
   echo "[entrypoint] starting Xiaozhi MCP bridge…"

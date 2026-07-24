@@ -15,6 +15,7 @@ from typing import Any
 
 from config import (
     BASE_DIR,
+    DATA_DIR,
     DEEPSEEK_API_KEY,
     DEEPSEEK_BASE_URL,
     DEEPSEEK_MODEL,
@@ -23,7 +24,7 @@ from config import (
 from cst_data import get_session
 from med_ai_service import deepseek_configured
 
-UPLOAD_ROOT = BASE_DIR / "instance" / "uploads" / "cst_materials"
+UPLOAD_ROOT = DATA_DIR / "uploads" / "cst_materials"
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ALLOWED_TEXT_EXT = {".txt"}
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
@@ -187,7 +188,7 @@ def save_material(
         abs_path = elder_dir / stored
         abs_path.write_bytes(data)
         file_name = Path(file_storage.filename).name[:120]
-        file_path = str(abs_path.relative_to(BASE_DIR)).replace("\\", "/")
+        file_path = str(abs_path.relative_to(DATA_DIR)).replace("\\", "/")
         mime_type = getattr(file_storage, "mimetype", None) or ""
 
         if kind == "note" and not text_content and ext in ALLOWED_TEXT_EXT:
@@ -234,10 +235,11 @@ def material_abs_path(material: dict) -> Path | None:
     rel = material.get("file_path") or ""
     if not rel:
         return None
-    path = BASE_DIR / rel
-    if not path.is_file():
-        return None
-    return path
+    for root in (DATA_DIR, BASE_DIR):
+        path = root / rel
+        if path.is_file():
+            return path
+    return None
 
 
 def _call_deepseek_json(messages: list[dict], *, temperature: float = 0.85) -> dict:

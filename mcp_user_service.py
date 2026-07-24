@@ -2,12 +2,63 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import secrets
 import sqlite3
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from user_auth import ROLE_ELDER, ROLE_FAMILY, get_linked_elder
 from werkzeug.security import generate_password_hash
+
+
+def parse_xiaozhi_endpoint_token(raw: str) -> dict[str, str]:
+    """
+    从小智「MCP 接入点」粘贴内容解析 userId / agentId。
+    支持：完整 wss://...?token=JWT、单独 JWT、或纯数字 UserId。
+    """
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("请粘贴小智 MCP 接入点地址或 Token")
+
+    jwt = ""
+    if text.startswith("wss://") or text.startswith("ws://") or "token=" in text:
+        try:
+            if "://" not in text and text.startswith("?"):
+                text = "wss://dummy" + text
+            elif "://" not in text and "token=" in text:
+                text = "wss://dummy/?" + text.split("?", 1)[-1]
+            parsed = urlparse(text)
+            qs = parse_qs(parsed.query)
+            jwt = (qs.get("token") or [""])[0].strip()
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError("接入点地址格式不正确") from exc
+        if not jwt:
+            raise ValueError("接入点地址中未找到 token 参数")
+    elif text.count(".") == 2 and len(text) > 40:
+        jwt = text
+    elif text.isdigit():
+        return {"xiaozhi_user_id": text, "xiaozhi_agent_id": "", "raw_token": ""}
+    else:
+        raise ValueError("请粘贴小智控制台「MCP 接入点」完整地址（含 token=），或 JWT Token")
+
+    try:
+        part = jwt.split(".")[1]
+        pad = "=" * ((4 - len(part) % 4) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(part + pad).decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError("无法解析小智 Token，请确认从控制台复制了最新接入点") from exc
+
+    user_id = payload.get("userId")
+    agent_id = payload.get("agentId")
+    if user_id is None:
+        raise ValueError("Token 中缺少 userId，请重新打开小智控制台复制接入点")
+    return {
+        "xiaozhi_user_id": str(user_id),
+        "xiaozhi_agent_id": str(agent_id) if agent_id is not None else "",
+        "raw_token": jwt,
+    }
 
 
 def ensure_mcp_user_schema(db: sqlite3.Connection) -> None:

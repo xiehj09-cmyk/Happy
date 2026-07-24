@@ -56,7 +56,7 @@ spec:
 
     ## 数据卷
 
-    - web：请挂载 Volume 到 `/app/instance`，否则每次 Redeploy 会清空账号，旧登录 Cookie 会失效
+    - web：请挂载 Volume 到 `/data`，否则每次 Redeploy 会清空账号，旧登录 Cookie 会失效
     - mcp：`/app/data`（语音事项 txt）
   services:
     - name: web
@@ -73,8 +73,8 @@ spec:
             port: 8080
             type: HTTP
         volumes:
-          - id: web-instance
-            dir: /app/instance
+          - id: web-data
+            dir: /data
         env:
           HOST:
             default: "0.0.0.0"
@@ -86,11 +86,15 @@ spec:
             default: "1"
           WAITRESS_THREADS:
             default: "4"
+          DATA_DIR:
+            default: "/data"
           SECRET_KEY:
             default: ${SECRET_KEY}
           MCP_API_TOKEN:
             default: ${MCP_API_TOKEN}
             expose: true
+          MCP_ELDER_USERNAME:
+            default: "15"
           MCP_ELDER_USER_ID:
             default: "0"
           DEEPSEEK_API_KEY:

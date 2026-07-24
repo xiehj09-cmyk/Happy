@@ -23,6 +23,20 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(BASE_DIR / ".env")
 
+
+def resolve_data_dir() -> Path:
+    """持久化目录：优先 DATA_DIR；Zeabur 挂载 /data 时自动使用；否则 instance/。"""
+    env = os.environ.get("DATA_DIR", "").strip()
+    if env:
+        return Path(env)
+    zeabur_data = Path("/data")
+    if zeabur_data.is_dir() and os.access(zeabur_data, os.W_OK):
+        return zeabur_data
+    return BASE_DIR / "instance"
+
+
+DATA_DIR = resolve_data_dir()
+
 SECRET_KEY = os.environ.get("SECRET_KEY") or "alzheimers-care-dev-secret-change-in-production"
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "5000"))

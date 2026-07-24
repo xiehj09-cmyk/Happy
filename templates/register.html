@@ -6,31 +6,31 @@
   <section class="brand-panel">
     <p class="brand-mark">记忆港湾</p>
     <h1 class="brand-title">创建家庭照护空间</h1>
-    <p class="brand-desc">可注册老人账号或家属账号。选择家属时，必须同时为长者创建并绑定一个老人账号，之后双方可分别登录。</p>
+    <p class="brand-desc">注册时会同时创建老人与家属账号并互相绑定。两边可分别登录，共同管理记忆与日常。</p>
   </section>
 
   <section class="form-panel">
     <div class="form-card form-card-wide">
       <header class="form-header">
         <h2>注册账号</h2>
-        <p>请先选择账号类型。家属注册时，下方「绑定老人账号」为必填项。</p>
+        <p>请先选择「您本人」的账号类型；另一角色账号为必填，将一并创建。</p>
       </header>
 
       <form class="auth-form" method="post" action="{{ url_for('register') }}" novalidate data-auth-form data-require-confirm data-register-form>
         <fieldset class="role-switch" data-role-switch>
-          <legend>账号类型</legend>
+          <legend>我要注册为</legend>
           <label class="role-option">
             <input type="radio" name="role" value="elder" {% if role == 'elder' %}checked{% endif %} data-role-input />
             <span class="role-card">
               <strong>老人账号</strong>
-              <small>长者本人使用，无需额外绑定</small>
+              <small>须同时创建并绑定家属账号</small>
             </span>
           </label>
           <label class="role-option">
             <input type="radio" name="role" value="family" {% if role != 'elder' %}checked{% endif %} data-role-input />
             <span class="role-card">
               <strong>家属账号</strong>
-              <small>须同时注册并绑定老人账号</small>
+              <small>须同时创建并绑定老人账号</small>
             </span>
           </label>
         </fieldset>
@@ -91,6 +91,42 @@
             <span>确认老人密码</span>
             <div class="password-wrap">
               <input type="password" name="elder_confirm_password" minlength="6" placeholder="再次输入老人密码" data-elder-required />
+              <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-section family-bind-panel" data-family-bind {% if role != 'elder' %}hidden{% endif %}>
+          <h3 class="form-section-title">绑定家属账号（必填）</h3>
+          <p class="field-hint bind-hint">注册老人账号时必须同时创建家属账号，便于照护管理。</p>
+
+          <label class="field">
+            <span>与老人的关系</span>
+            <input type="text" name="family_relation" value="{{ family_relation|default('家属') }}" maxlength="16" placeholder="如：女儿、儿子、护工" data-family-required />
+          </label>
+
+          <label class="field">
+            <span>家属用户名</span>
+            <input type="text" name="family_username" value="{{ family_username|default('') }}" maxlength="32" placeholder="家属登录名" data-family-required />
+          </label>
+
+          <label class="field">
+            <span>家属邮箱</span>
+            <input type="email" name="family_email" value="{{ family_email|default('') }}" placeholder="家属邮箱" data-family-required />
+          </label>
+
+          <label class="field">
+            <span>家属登录密码</span>
+            <div class="password-wrap">
+              <input type="password" name="family_password" minlength="6" placeholder="至少 6 位" data-family-required />
+              <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>确认家属密码</span>
+            <div class="password-wrap">
+              <input type="password" name="family_confirm_password" minlength="6" placeholder="再次输入家属密码" data-family-required />
               <button type="button" class="toggle-password" aria-label="显示密码">显示</button>
             </div>
           </label>

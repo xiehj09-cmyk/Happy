@@ -56,6 +56,8 @@ from baidu_speech_service import (
     synthesize_speech,
 )
 from config import (
+    BASE_DIR,
+    DATA_DIR,
     DEBUG,
     HOST,
     MCP_API_TOKEN,
@@ -72,6 +74,7 @@ from mcp_user_service import (
     ensure_mcp_user_schema,
     ensure_user_mcp_token,
     list_xiaozhi_links_for_elder,
+    parse_xiaozhi_endpoint_token,
     resolve_configured_elder_id,
     resolve_mcp_identity,
     rotate_user_mcp_token,
@@ -130,7 +133,27 @@ from user_auth import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "instance" / "users.db"
+# 账号与业务数据：Zeabur 请挂载 /data（或设置 DATA_DIR）
+DB_PATH = DATA_DIR / "users.db"
+
+
+def _migrate_legacy_instance_db() -> None:
+    """若新数据目录尚无库、旧 instance 有库，则复制过去（一次性）。"""
+    legacy = BASE_DIR / "instance" / "users.db"
+    if DB_PATH.exists() or not legacy.exists():
+        return
+    if DB_PATH.resolve() == legacy.resolve():
+        return
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+
+        shutil.copy2(legacy, DB_PATH)
+    except OSError:
+        pass
+
+
+_migrate_legacy_instance_db()
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -1001,7 +1024,7 @@ def api_mcp_whoami():
 @app.route("/settings/mcp-token", methods=["POST"])
 @login_required
 def settings_mcp_token():
-    """刷新个人语音同步密钥，或手动绑定小智 UserId。"""
+    """刷新个人语音同步密钥，或用小智 MCP 接入点 Token 绑定。"""
     db = get_db()
     user = load_current_user()
     if not user:
@@ -1013,16 +1036,23 @@ def settings_mcp_token():
         rotate_user_mcp_token(db, int(user["id"]))
         flash("已生成新的语音同步密钥，请同步更新小智 MCP 配置。", "success")
     elif action == "bind_xiaozhi":
-        xid = (request.form.get("xiaozhi_user_id") or "").strip()
-        agent = (request.form.get("xiaozhi_agent_id") or "").strip() or None
+        raw_token = (
+            request.form.get("xiaozhi_token")
+            or request.form.get("xiaozhi_user_id")
+            or ""
+        ).strip()
         try:
+            parsed = parse_xiaozhi_endpoint_token(raw_token)
+            xid = parsed["xiaozhi_user_id"]
+            agent = parsed.get("xiaozhi_agent_id") or None
             bind_xiaozhi_user(db, int(elder_id), xid, agent_id=agent)
             elder_name = db.execute(
                 "SELECT username FROM users WHERE id = ?", (elder_id,)
             ).fetchone()
             label = elder_name["username"] if elder_name else str(elder_id)
+            extra = f" · Agent {agent}" if agent else ""
             flash(
-                f"已绑定小智用户 {xid} → 记忆港湾账号「{label}」（id={elder_id}）。",
+                f"已用小智 Token 绑定用户 {xid}{extra} → 记忆港湾账号「{label}」。",
                 "success",
             )
         except ValueError as exc:
@@ -1473,7 +1503,7 @@ def tasks_page():
     db = get_db()
     board = board_today(db, elder_id)
     week = week_overview(db, elder_id)
-    templates = list_tasks(db, elder_id, active_only=True) if is_family else []
+    templates = list_tasks(db, elder_id, active_only=True)
     focus = None
     focus_id = request.args.get("focus_id", type=int)
     if not is_family:
@@ -1505,8 +1535,9 @@ def tasks_page():
 @app.route("/tasks/create", methods=["POST"])
 @login_required
 def tasks_create():
-    if session.get("role") != ROLE_FAMILY:
-        flash("仅家属可创建任务。", "error")
+    role = session.get("role", ROLE_ELDER)
+    if role not in {ROLE_FAMILY, ROLE_ELDER}:
+        flash("无权创建任务。", "error")
         return redirect(url_for("tasks_page"))
     elder_id = effective_care_user_id()
     title = (request.form.get("title") or "").strip()
@@ -1532,8 +1563,9 @@ def tasks_create():
 @app.route("/tasks/<int:task_id>/update", methods=["POST"])
 @login_required
 def tasks_update(task_id: int):
-    if session.get("role") != ROLE_FAMILY:
-        flash("仅家属可修改任务。", "error")
+    role = session.get("role", ROLE_ELDER)
+    if role not in {ROLE_FAMILY, ROLE_ELDER}:
+        flash("无权修改任务。", "error")
         return redirect(url_for("tasks_page"))
     elder_id = effective_care_user_id()
     title = (request.form.get("title") or "").strip()
@@ -1559,8 +1591,9 @@ def tasks_update(task_id: int):
 @app.route("/tasks/<int:task_id>/delete", methods=["POST"])
 @login_required
 def tasks_delete(task_id: int):
-    if session.get("role") != ROLE_FAMILY:
-        flash("仅家属可停用任务。", "error")
+    role = session.get("role", ROLE_ELDER)
+    if role not in {ROLE_FAMILY, ROLE_ELDER}:
+        flash("无权停用任务。", "error")
         return redirect(url_for("tasks_page"))
     ok = deactivate_task(get_db(), task_id, effective_care_user_id())
     flash("任务已停用。" if ok else "停用失败。", "success" if ok else "error")
@@ -1679,8 +1712,8 @@ def api_tasks_complete_all(task_id: int):
     elder_id, role, err = _api_care_context()
     if err:
         return err
-    if role != ROLE_FAMILY:
-        return jsonify({"ok": False, "error": "仅家属可代完成整件"}), 403
+    if role not in {ROLE_FAMILY, ROLE_ELDER}:
+        return jsonify({"ok": False, "error": "无权完成整件任务"}), 403
     data = request.get_json(silent=True) or {}
     action_id = (data.get("action_id") or "").strip()
     if not action_id:
@@ -1977,6 +2010,9 @@ def register():
         "email": (request.form.get("email") or "").strip(),
         "elder_username": (request.form.get("elder_username") or "").strip(),
         "relation": (request.form.get("relation") or "家属").strip() or "家属",
+        "family_username": (request.form.get("family_username") or "").strip(),
+        "family_email": (request.form.get("family_email") or "").strip(),
+        "family_relation": (request.form.get("family_relation") or "家属").strip() or "家属",
     }
     if request.method == "POST":
         password = request.form.get("password") or ""
@@ -1989,12 +2025,24 @@ def register():
         )
         elder_password = request.form.get("elder_password") or ""
         elder_confirm = request.form.get("elder_confirm_password") or ""
+        family_password = request.form.get("family_password") or ""
+        family_confirm = request.form.get("family_confirm_password") or ""
         if role == ROLE_FAMILY and not error:
             error = validate_username(form["elder_username"])
             if not error and form["elder_username"].casefold() == form["username"].casefold():
                 error = "老人用户名不能与家属用户名相同。"
             if not error:
                 error = validate_password(elder_password, elder_confirm)
+        if role == ROLE_ELDER and not error:
+            error = validate_username(form["family_username"])
+            if not error:
+                error = validate_email(form["family_email"])
+            if not error and form["family_username"].casefold() == form["username"].casefold():
+                error = "家属用户名不能与老人用户名相同。"
+            if not error and form["family_email"].casefold() == form["email"].casefold():
+                error = "家属邮箱不能与老人邮箱相同。"
+            if not error:
+                error = validate_password(family_password, family_confirm)
         if error:
             flash(error, "error")
             return render_template("register.html", **form)
@@ -2009,12 +2057,45 @@ def register():
             return render_template("register.html", **form)
 
         if role == ROLE_ELDER:
-            db.execute(
-                "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
-                (form["username"], form["email"], generate_password_hash(password), ROLE_ELDER),
+            family_clash = db.execute(
+                "SELECT id FROM users WHERE username = ? OR email = ?",
+                (form["family_username"], form["family_email"]),
+            ).fetchone()
+            if family_clash:
+                flash("家属用户名或邮箱已被占用，请更换后重试。", "error")
+                return render_template("register.html", **form)
+            try:
+                cur = db.execute(
+                    "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
+                    (
+                        form["username"],
+                        form["email"],
+                        generate_password_hash(password),
+                        ROLE_ELDER,
+                    ),
+                )
+                elder_id = cur.lastrowid
+                cur = db.execute(
+                    "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
+                    (
+                        form["family_username"],
+                        form["family_email"],
+                        generate_password_hash(family_password),
+                        ROLE_FAMILY,
+                    ),
+                )
+                family_id = cur.lastrowid
+                create_family_link(db, family_id, elder_id, form["family_relation"])
+                db.commit()
+            except sqlite3.IntegrityError:
+                db.rollback()
+                flash("注册失败，用户名或邮箱可能已被占用。", "error")
+                return render_template("register.html", **form)
+            flash(
+                f"注册成功：老人「{form['username']}」已绑定家属「{form['family_username']}」。"
+                "请用老人账号登录，家属可用其账号登录。",
+                "success",
             )
-            db.commit()
-            flash("老人账号注册成功，请选择「老人账号」登录。", "success")
             return redirect(url_for("login", role=ROLE_ELDER))
 
         elder_exists = db.execute(
@@ -2072,6 +2153,9 @@ def register():
         email="",
         elder_username="",
         relation="家属",
+        family_username="",
+        family_email="",
+        family_relation="家属",
     )
 
 
