@@ -12,6 +12,13 @@ const { URL } = require("url");
 
 const NOTES_FILE = path.join(__dirname, "data", "voice_notes.txt");
 const ENV_FILE = path.join(__dirname, ".env");
+const {
+  scheduleReminder,
+  listScheduled,
+} = require("./reminder-scheduler.js");
+
+/** 到点待播队列（本机 MCP 进程内；设备端 WakeWordInvoke 才是真正唤醒） */
+const pendingWakeQueue = [];
 
 function parseXiaozhiIds(endpoint) {
   const out = { userId: "", agentId: "" };
@@ -208,38 +215,136 @@ module.exports = {
       }
     );
 
-    /** 1. 代办写入 → 网站代办清单 */
+    /** 1. 代办写入 → 网站代办清单 + 到点提醒 */
     server.tool(
       "voice_note_write",
-      "把代办事项写入记忆港湾「代办清单」。用于「帮我记一下今天下午三点吃药」。可带提醒时间 due_at。",
+      "把代办写入记忆港湾，并可设置到点提醒。用于「帮我记一下，30秒后吃药」「明天下午三点提醒我买药」。"
+        + "若带有 delay_seconds 或相对时间（如 30秒后），请同时调用设备工具 self.schedule_reminder"
+        + "（delay_seconds + message=返回的 wake_text），设备将走 WakeWordInvoke → SendWakeWordDetected 完整唤醒链路播报提醒。",
       {
-        text: z.string().min(1).describe("要记录的代办内容，如：下午三点吃药"),
+        text: z.string().min(1).describe("要记录的代办内容，如：吃药"),
         due_at: z
           .string()
           .optional()
-          .describe("可选提醒时间，如 15:00、今天下午3点、2026-07-24 15:00"),
+          .describe("提醒时间：30秒后 / 5分钟后 / 15:00 / 今天下午3点"),
+        delay_seconds: z
+          .number()
+          .int()
+          .min(1)
+          .max(86400)
+          .optional()
+          .describe("相对延迟秒数，优先于 due_at。例：30 表示 30 秒后提醒"),
       },
-      async ({ text, due_at }) => {
+      async ({ text, due_at, delay_seconds }) => {
         const body = String(text || "").trim();
         if (!body) return errText(new Error("没有听到可记录的内容"));
         ensureNotesFile();
-        const line = `${nowStamp()} | ${body.replace(/\s+/g, " ")}${due_at ? " @ " + due_at : ""}\n`;
+        const line =
+          `${nowStamp()} | ${body.replace(/\s+/g, " ")}` +
+          (delay_seconds ? ` @ ${delay_seconds}s` : due_at ? ` @ ${due_at}` : "") +
+          "\n";
         fs.appendFileSync(NOTES_FILE, line, "utf8");
-        let syncMsg = "";
         try {
           const payload = { text: body };
-          if (due_at) payload.due_at = String(due_at).trim();
+          if (delay_seconds) payload.delay_seconds = delay_seconds;
+          else if (due_at) payload.due_at = String(due_at).trim();
           const data = await apiRequest("POST", "/api/mcp/matters", payload);
           const m = data.matter || {};
+          const wakeText = data.wake_text || "";
+          const delaySec = m.delay_seconds || delay_seconds || null;
+          if (delaySec && m.id) {
+            scheduleReminder({
+              matterId: m.id,
+              delaySeconds: delaySec,
+              body: m.body || body,
+              wakeText,
+              apiRequest,
+              onFire: (ev) => pendingWakeQueue.push(ev),
+            });
+          }
           const dueLabel = m.due_at_label ? `，提醒 ${m.due_at_label}` : "";
-          syncMsg = m.id
-            ? `已同步到网站代办清单（#${m.id}${dueLabel}）。`
-            : "已同步到网站代办清单。";
+          let msg = `已记下：${body}\n已同步到网站代办（#${m.id || "?"}${dueLabel}）。`;
+          if (delaySec && wakeText) {
+            msg +=
+              `\n请立刻再调用设备工具 self.schedule_reminder：` +
+              `delay_seconds=${delaySec}，message「${wakeText}」。` +
+              `到点设备会 WakeWordInvoke → SendWakeWordDetected 唤醒提醒。`;
+          }
+          return okText(msg);
         } catch (e) {
-          syncMsg = "本地已保存，但同步网站失败：" + (e.message || e) + "。";
+          return errText(e);
         }
-        const total = readNoteLines().length;
-        return okText(`已记下：${body}\n${syncMsg}本地共 ${total} 条。`);
+      }
+    );
+
+    server.tool(
+      "schedule_voice_reminder",
+      "单独安排到点提醒（可与代办配合）。相对延迟到点后，本机桥接会标记已提醒；"
+        + "请同时调用设备 self.schedule_reminder，走 WakeWordInvoke 完整唤醒链路。",
+      {
+        text: z.string().min(1).describe("提醒内容，如：该吃药了"),
+        delay_seconds: z
+          .number()
+          .int()
+          .min(1)
+          .max(86400)
+          .describe("多少秒后提醒，例如 30"),
+      },
+      async ({ text, delay_seconds }) => {
+        try {
+          const data = await apiRequest("POST", "/api/mcp/matters", {
+            text,
+            delay_seconds,
+          });
+          const m = data.matter || {};
+          const wakeText = data.wake_text || "";
+          if (m.id && delay_seconds) {
+            scheduleReminder({
+              matterId: m.id,
+              delaySeconds: delay_seconds,
+              body: m.body || text,
+              wakeText,
+              apiRequest,
+              onFire: (ev) => pendingWakeQueue.push(ev),
+            });
+          }
+          return okText(
+            `已安排 ${delay_seconds} 秒后提醒「${text}」（代办 #${m.id}）。\n` +
+              `请同时调用 self.schedule_reminder(delay_seconds=${delay_seconds}, message="${wakeText}")，` +
+              `设备将走 WakeWordInvoke → SendWakeWordDetected。`
+          );
+        } catch (e) {
+          return errText(e);
+        }
+      }
+    );
+
+    server.tool(
+      "check_due_reminders",
+      "检查已到点的提醒（网站 + 本机待播队列）。若设备未能 WakeWordInvoke，可用本工具补问。",
+      {},
+      async () => {
+        const parts = [];
+        try {
+          const data = await apiRequest("GET", "/api/mcp/reminders/due");
+          parts.push(data.speak || "网站侧无到点提醒。");
+          if (data.wake_texts && data.wake_texts.length) {
+            parts.push("唤醒文案：" + data.wake_texts.join(" | "));
+          }
+        } catch (e) {
+          parts.push("网站提醒查询失败：" + ((e && e.message) || e));
+        }
+        if (pendingWakeQueue.length) {
+          parts.push(
+            "本机待播：" +
+              pendingWakeQueue
+                .splice(0, pendingWakeQueue.length)
+                .map((x) => x.wakeText || x.body)
+                .join(" | ")
+          );
+        }
+        parts.push("本机已调度中：" + (listScheduled().join(",") || "无"));
+        return okText(parts.join("\n"));
       }
     );
 

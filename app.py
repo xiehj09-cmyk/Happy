@@ -88,9 +88,13 @@ from voice_matter_service import (
     complete_matter,
     delete_matter,
     ensure_voice_matter_tables,
+    list_due_reminders,
     list_matters,
+    mark_matter_reminded,
+    parse_relative_delay_seconds,
     reopen_matter,
     speak_matters_summary,
+    wake_prompt_for_matter,
 )
 from medication_service import (
     PLACE_OPTIONS,
@@ -461,6 +465,8 @@ def ensure_db_and_protect():
         "api_mcp_meds_today",
         "api_mcp_meds_taken",
         "api_mcp_today_agenda",
+        "api_mcp_reminders_due",
+        "api_mcp_reminder_fired",
         "api_mcp_whoami",
     }
     if request.endpoint in open_endpoints or request.endpoint is None:
@@ -935,7 +941,7 @@ def api_speech_evaluate():
 @app.route("/api/mcp/matters", methods=["POST"])
 @mcp_token_required
 def api_mcp_matters_create():
-    """代办录入 → 同步写入网站（可带提醒时间）。"""
+    """代办录入 → 同步写入网站（可带提醒时间 / 相对延迟）。"""
     db = get_db()
     elder_id = resolve_mcp_elder_id(db)
     if not elder_id:
@@ -943,12 +949,86 @@ def api_mcp_matters_create():
     data = request.get_json(silent=True) or {}
     text = str(data.get("text") or data.get("body") or "").strip()
     due_at = str(data.get("due_at") or data.get("remind_at") or data.get("time") or "").strip()
+    delay_raw = data.get("delay_seconds")
+    delay_seconds = None
+    if delay_raw not in (None, ""):
+        try:
+            delay_seconds = max(1, int(delay_raw))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "delay_seconds 必须是正整数"}), 400
+    elif due_at:
+        parsed_delay = parse_relative_delay_seconds(due_at)
+        if parsed_delay is not None:
+            delay_seconds = parsed_delay
+            due_at = ""
     if not text:
         return jsonify({"ok": False, "error": "事项内容不能为空"}), 400
     try:
-        matter = add_matter(db, elder_id, text, source="xiaozhi", due_at=due_at or None)
+        matter = add_matter(
+            db,
+            elder_id,
+            text,
+            source="xiaozhi",
+            due_at=due_at or None,
+            delay_seconds=delay_seconds,
+        )
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+    wake_text = wake_prompt_for_matter(matter)
+    return jsonify(
+        {
+            "ok": True,
+            "matter": matter,
+            "wake_text": wake_text,
+            "device_schedule": {
+                "tool": "self.schedule_reminder",
+                "delay_seconds": matter.get("delay_seconds"),
+                "message": wake_text,
+                "hint": "若设备已烧录记忆港湾提醒固件，请同时调用 self.schedule_reminder，到点将 WakeWordInvoke → SendWakeWordDetected。",
+            }
+            if matter.get("delay_seconds")
+            else None,
+        }
+    )
+
+
+@app.route("/api/mcp/reminders/due", methods=["GET"])
+@mcp_token_required
+def api_mcp_reminders_due():
+    """列出已到期、尚未播报的提醒。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+    items = list_due_reminders(db, elder_id, limit=request.args.get("limit", type=int) or 20)
+    prompts = [wake_prompt_for_matter(m) for m in items]
+    speak = (
+        "有 " + str(len(items)) + " 条到点提醒：" + "；".join(m.get("body") or "" for m in items)
+        if items
+        else "当前没有到点提醒。"
+    )
+    return jsonify(
+        {
+            "ok": True,
+            "reminders": items,
+            "wake_texts": prompts,
+            "count": len(items),
+            "speak": speak,
+        }
+    )
+
+
+@app.route("/api/mcp/reminders/<int:matter_id>/fired", methods=["POST"])
+@mcp_token_required
+def api_mcp_reminder_fired(matter_id: int):
+    """设备/桥接到点唤醒后回写，避免重复提醒。"""
+    db = get_db()
+    elder_id = resolve_mcp_elder_id(db)
+    if not elder_id:
+        return jsonify({"ok": False, "error": "未找到老人账号"}), 400
+    matter = mark_matter_reminded(db, elder_id, matter_id)
+    if not matter:
+        return jsonify({"ok": False, "error": "未找到该代办"}), 404
     return jsonify({"ok": True, "matter": matter})
 
 

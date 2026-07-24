@@ -44,6 +44,8 @@ def ensure_voice_matter_tables(db: sqlite3.Connection) -> None:
     cols = {row[1] for row in db.execute("PRAGMA table_info(voice_matters)").fetchall()}
     if "due_at" not in cols:
         db.execute("ALTER TABLE voice_matters ADD COLUMN due_at TEXT")
+    if "reminded_at" not in cols:
+        db.execute("ALTER TABLE voice_matters ADD COLUMN reminded_at TEXT")
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_voice_matters_elder_status "
         "ON voice_matters(elder_user_id, status, created_at DESC)"
@@ -58,7 +60,7 @@ def ensure_voice_matter_tables(db: sqlite3.Connection) -> None:
 def normalize_due_at(raw: str | None) -> str | None:
     """
     把提醒时间规范成 'YYYY-MM-DD HH:MM:SS'。
-    支持：完整日期时间、今天的 HH:MM、相对「今天/明天 + 时间」。
+    支持：完整日期时间、今天的 HH:MM、相对「N秒/分钟/小时后」、今天/明天口语。
     """
     text = (raw or "").strip()
     if not text:
@@ -66,6 +68,12 @@ def normalize_due_at(raw: str | None) -> str | None:
 
     # datetime-local: 2026-07-24T15:00
     text = text.replace("T", " ").replace("/", "-")
+
+    # 相对时间：30秒后 / 5分钟后 / 1小时后
+    delay_sec = parse_relative_delay_seconds(text)
+    if delay_sec is not None:
+        dt = datetime.now() + timedelta(seconds=delay_sec)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     for fmt in (
         "%Y-%m-%d %H:%M:%S",
@@ -123,7 +131,48 @@ def normalize_due_at(raw: str | None) -> str | None:
             dt = base.replace(hour=hour, minute=minute)
             return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-    raise ValueError("提醒时间格式不正确，可用如：2026-07-24 15:00、15:00、今天下午3点")
+    raise ValueError(
+        "提醒时间格式不正确，可用如：30秒后、5分钟后、2026-07-24 15:00、15:00、今天下午3点"
+    )
+
+
+def parse_relative_delay_seconds(raw: str | None) -> int | None:
+    """解析相对延迟秒数；无法识别则返回 None。"""
+    text = (raw or "").strip()
+    if not text:
+        return None
+    # 纯数字当作秒
+    if re.fullmatch(r"\d+", text):
+        return max(1, int(text))
+    m = re.fullmatch(
+        r"(\d+)\s*(秒|秒钟|秒后|s|sec|secs|second|seconds)"
+        r"|(\d+)\s*(分钟|分种|分后|分|min|mins|minute|minutes)"
+        r"|(\d+)\s*(小时|钟头|小时后|h|hour|hours)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        # 允许「30秒后吃药」嵌在句子里时，只取前缀相对段
+        m2 = re.match(
+            r"^(\d+)\s*(秒|秒钟|分钟|分|小时|钟头)",
+            text,
+        )
+        if not m2:
+            return None
+        n = int(m2.group(1))
+        unit = m2.group(2)
+        if unit.startswith("秒"):
+            return max(1, n)
+        if unit.startswith("分"):
+            return max(1, n * 60)
+        return max(1, n * 3600)
+    if m.group(1):
+        return max(1, int(m.group(1)))
+    if m.group(3):
+        return max(1, int(m.group(3)) * 60)
+    if m.group(5):
+        return max(1, int(m.group(5)) * 3600)
+    return None
 
 
 def add_matter(
@@ -134,11 +183,17 @@ def add_matter(
     source: str = "xiaozhi",
     recorded_by: int | None = None,
     due_at: str | None = None,
+    delay_seconds: int | None = None,
 ) -> dict[str, Any]:
     text = (body or "").strip()
     if not text:
         raise ValueError("事项内容不能为空")
-    due = normalize_due_at(due_at) if due_at else None
+    due = None
+    if delay_seconds is not None:
+        sec = max(1, int(delay_seconds))
+        due = (datetime.now() + timedelta(seconds=sec)).strftime("%Y-%m-%d %H:%M:%S")
+    elif due_at:
+        due = normalize_due_at(due_at)
     cur = db.execute(
         """
         INSERT INTO voice_matters (elder_user_id, body, source, recorded_by, due_at)
@@ -147,7 +202,19 @@ def add_matter(
         (elder_user_id, text, source or "xiaozhi", recorded_by, due),
     )
     db.commit()
-    return get_matter(db, int(cur.lastrowid), elder_user_id)  # type: ignore[arg-type]
+    matter = get_matter(db, int(cur.lastrowid), elder_user_id)  # type: ignore[arg-type]
+    if matter is not None and delay_seconds is not None:
+        matter["delay_seconds"] = max(1, int(delay_seconds))
+    elif matter is not None and due:
+        # 反推剩余秒数，供设备端 schedule
+        try:
+            due_dt = datetime.strptime(due[:19], "%Y-%m-%d %H:%M:%S")
+            remain = int((due_dt - datetime.now()).total_seconds())
+            if remain > 0:
+                matter["delay_seconds"] = remain
+        except ValueError:
+            pass
+    return matter  # type: ignore[return-value]
 
 
 def get_matter(
@@ -252,6 +319,56 @@ def delete_matter(
     )
     db.commit()
     return cur.rowcount > 0
+
+
+def list_due_reminders(
+    db: sqlite3.Connection,
+    elder_user_id: int,
+    *,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """到期且尚未提醒、仍待完成的代办。"""
+    limit = max(1, min(50, int(limit or 20)))
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows = db.execute(
+        """
+        SELECT * FROM voice_matters
+        WHERE elder_user_id = ?
+          AND status = ?
+          AND due_at IS NOT NULL AND due_at != ''
+          AND due_at <= ?
+          AND (reminded_at IS NULL OR reminded_at = '')
+        ORDER BY due_at ASC
+        LIMIT ?
+        """,
+        (elder_user_id, STATUS_OPEN, now, limit),
+    ).fetchall()
+    return [_serialize(r) for r in rows]
+
+
+def mark_matter_reminded(
+    db: sqlite3.Connection, elder_user_id: int, matter_id: int
+) -> dict[str, Any] | None:
+    matter = get_matter(db, matter_id, elder_user_id)
+    if not matter:
+        return None
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    db.execute(
+        """
+        UPDATE voice_matters
+        SET reminded_at = ?
+        WHERE id = ? AND elder_user_id = ?
+        """,
+        (now, matter_id, elder_user_id),
+    )
+    db.commit()
+    return get_matter(db, matter_id, elder_user_id)
+
+
+def wake_prompt_for_matter(matter: dict[str, Any]) -> str:
+    """生成传给 WakeWordInvoke / SendWakeWordDetected 的唤醒文本。"""
+    body = (matter.get("body") or "一件事").strip()
+    return f"到点提醒：请温柔提醒用户「{body}」。"
 
 
 def speak_matters_summary(items: list[dict[str, Any]], *, keyword: str = "") -> str:
