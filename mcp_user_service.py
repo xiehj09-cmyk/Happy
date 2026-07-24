@@ -226,6 +226,65 @@ def provision_elder_for_xiaozhi(
     return elder_id
 
 
+def resolve_configured_elder_id(
+    db: sqlite3.Connection,
+    *,
+    username: str = "",
+    user_id: int = 0,
+) -> int:
+    """按环境变量解析默认老人账号：优先 username，其次数字 id。"""
+    name = (username or "").strip()
+    if name:
+        row = db.execute(
+            "SELECT id, username, role FROM users WHERE username = ?",
+            (name,),
+        ).fetchone()
+        if row:
+            elder_id = elder_id_for_account(db, row)
+            if elder_id:
+                return int(elder_id)
+    if user_id:
+        row = db.execute(
+            "SELECT id, username, role FROM users WHERE id = ?",
+            (int(user_id),),
+        ).fetchone()
+        if row:
+            elder_id = elder_id_for_account(db, row)
+            if elder_id:
+                return int(elder_id)
+    return 0
+
+
+def force_bind_xiaozhi_to_elder(
+    db: sqlite3.Connection,
+    elder_user_id: int,
+    xiaozhi_user_id: str,
+    *,
+    agent_id: str | None = None,
+) -> None:
+    """将小智 UserId 强制绑定到指定老人（覆盖旧绑定）。"""
+    xid = str(xiaozhi_user_id).strip()
+    if not xid or not elder_user_id:
+        return
+    existing = get_link_by_xiaozhi_user(db, xid)
+    if existing and int(existing["elder_user_id"]) == int(elder_user_id):
+        touch_xiaozhi_link(db, xid, agent_id=agent_id)
+        return
+    if existing:
+        db.execute(
+            """
+            UPDATE xiaozhi_user_links
+            SET elder_user_id = ?, xiaozhi_agent_id = COALESCE(?, xiaozhi_agent_id),
+                last_seen_at = datetime('now', 'localtime')
+            WHERE xiaozhi_user_id = ?
+            """,
+            (int(elder_user_id), agent_id, xid),
+        )
+        db.commit()
+        return
+    bind_xiaozhi_user(db, int(elder_user_id), xid, agent_id=agent_id)
+
+
 def resolve_mcp_identity(
     db: sqlite3.Connection,
     bearer_token: str,
@@ -240,8 +299,9 @@ def resolve_mcp_identity(
     解析 MCP 请求归属的老人账号。
     优先级：
     1) 个人 mcp_token → 对应用户（家属转绑定老人）
-    2) 全局 Token + 小智 UserId → 仅接受已在网站手动绑定的账号
-    3) 未绑定 → 返回 need_bind / need_xiaozhi_id（不自动建档）
+    2) 全局 Token + 环境变量默认老人（MCP_ELDER_USERNAME / MCP_ELDER_USER_ID）→ 全部归该账号
+    3) 全局 Token + 小智 UserId → 已手动绑定的账号
+    4) 未绑定 → 返回 need_bind / need_xiaozhi_id（不自动建档）
     """
     token = (bearer_token or "").strip()
     if not token:
@@ -261,10 +321,30 @@ def resolve_mcp_identity(
         }
 
     if global_token and token == global_token:
+        # 环境变量强制默认账号：所有小智请求都落到该老人
+        if fallback_elder_id:
+            row = db.execute(
+                "SELECT id FROM users WHERE id = ?",
+                (int(fallback_elder_id),),
+            ).fetchone()
+            if row:
+                if xiaozhi_user_id:
+                    force_bind_xiaozhi_to_elder(
+                        db,
+                        int(fallback_elder_id),
+                        str(xiaozhi_user_id),
+                        agent_id=xiaozhi_agent_id,
+                    )
+                return {
+                    "elder_user_id": int(fallback_elder_id),
+                    "auth": "env_default",
+                    "xiaozhi_user_id": str(xiaozhi_user_id) if xiaozhi_user_id else None,
+                }
+
         if not xiaozhi_user_id:
             return {
                 "error": "need_xiaozhi_id",
-                "message": "共用桥接需携带小智 UserId，并先在网站工作台手动绑定",
+                "message": "共用桥接需携带小智 UserId，并先在网站工作台手动绑定；或设置 MCP_ELDER_USERNAME",
             }
         link = get_link_by_xiaozhi_user(db, str(xiaozhi_user_id))
         if link:

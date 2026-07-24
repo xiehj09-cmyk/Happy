@@ -55,7 +55,16 @@ from baidu_speech_service import (
     recognize_speech,
     synthesize_speech,
 )
-from config import DEBUG, HOST, MCP_API_TOKEN, MCP_ELDER_USER_ID, PORT, SECRET_KEY, THREADS
+from config import (
+    DEBUG,
+    HOST,
+    MCP_API_TOKEN,
+    MCP_ELDER_USER_ID,
+    MCP_ELDER_USERNAME,
+    PORT,
+    SECRET_KEY,
+    THREADS,
+)
 from companion_service import run_companion_chat
 from med_ai_service import deepseek_configured, process_smart_add
 from mcp_user_service import (
@@ -63,6 +72,7 @@ from mcp_user_service import (
     ensure_mcp_user_schema,
     ensure_user_mcp_token,
     list_xiaozhi_links_for_elder,
+    resolve_configured_elder_id,
     resolve_mcp_identity,
     rotate_user_mcp_token,
     unbind_xiaozhi_user,
@@ -241,13 +251,18 @@ def mcp_token_required(view):
                 xiaozhi_user_id = xiaozhi_user_id or str(body.get("xiaozhi_user_id") or "").strip()
                 xiaozhi_agent_id = xiaozhi_agent_id or str(body.get("xiaozhi_agent_id") or "").strip()
 
+        fallback_elder_id = resolve_configured_elder_id(
+            db,
+            username=MCP_ELDER_USERNAME,
+            user_id=MCP_ELDER_USER_ID,
+        )
         identity = resolve_mcp_identity(
             db,
             token,
             global_token=MCP_API_TOKEN,
             xiaozhi_user_id=xiaozhi_user_id or None,
             xiaozhi_agent_id=xiaozhi_agent_id or None,
-            fallback_elder_id=MCP_ELDER_USER_ID,
+            fallback_elder_id=fallback_elder_id,
             allow_auto_provision=False,
         )
         if not identity:
@@ -275,12 +290,13 @@ def resolve_mcp_elder_id(db: sqlite3.Connection) -> int | None:
     elder_id = getattr(g, "mcp_elder_id", None)
     if elder_id:
         return int(elder_id)
-    if MCP_ELDER_USER_ID:
-        row = db.execute(
-            "SELECT id FROM users WHERE id = ? AND role = ?",
-            (MCP_ELDER_USER_ID, ROLE_ELDER),
-        ).fetchone()
-        return int(row["id"]) if row else None
+    configured = resolve_configured_elder_id(
+        db,
+        username=MCP_ELDER_USERNAME,
+        user_id=MCP_ELDER_USER_ID,
+    )
+    if configured:
+        return configured
     row = db.execute(
         "SELECT id FROM users WHERE role = ? ORDER BY id ASC LIMIT 1",
         (ROLE_ELDER,),

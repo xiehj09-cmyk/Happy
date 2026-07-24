@@ -48,6 +48,7 @@ BAIDU_ASR_DEV_PID = int(os.environ.get("BAIDU_ASR_DEV_PID", "1537"))
 
 # 小智 MCP → 本站 API（本机桥接；勿把真实 Token 提交仓库）
 MCP_API_TOKEN = os.environ.get("MCP_API_TOKEN", "").strip()
-# 未指定时，MCP 接口会选用库中第一个老人账号
+# 所有小智请求默认归属的老人：优先用户名（如 15），其次数字 id
+MCP_ELDER_USERNAME = os.environ.get("MCP_ELDER_USERNAME", "").strip()
 MCP_ELDER_USER_ID = int(os.environ.get("MCP_ELDER_USER_ID", "0") or "0")
 MCP_API_BASE = os.environ.get("MCP_API_BASE", "http://127.0.0.1:5000").rstrip("/")

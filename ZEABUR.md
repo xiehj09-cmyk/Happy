@@ -20,20 +20,22 @@ HOST=0.0.0.0
 PORT=${WEB_PORT}
 TRUST_PROXY=1
 SECRET_KEY=随机长字符串
-MCP_API_TOKEN=随机长字符串
+MCP_API_TOKEN=请换成随机长字符串
 WEBSITE_MCP_TOKEN=与上面 MCP_API_TOKEN 相同
 WEBSITE_BASE=http://127.0.0.1:8080
+MCP_ELDER_USERNAME=15
 XIAOZHI_MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=你的最新接入点
 ```
 
 4. Networking → Generate Domain  
 5. Volumes → 挂载 `/app/instance`（持久化 SQLite）  
 6. Deploy / Redeploy  
-7. 打开域名 → 登录账号 **15** →「小智账号绑定」填 `1016444`（可选 Agent `2161930`）
+7. 打开域名确认账号 **15** 已注册；无需再手动绑定小智（环境变量会把全部小智请求归到 15）
 
 日志里应出现：`成功连接到WebSocket服务器` / `MCP服务器启动成功`。
 
 说明：
+- `MCP_ELDER_USERNAME=15`：所有经全局 `MCP_API_TOKEN` 进来的小智请求都写入账号 15
 - `WEBSITE_BASE` 由入口脚本自动设为 `http://127.0.0.1:$PORT`，Variables 里可不写
 - 构建使用「从官方 `node` 镜像拷贝」方式安装 Node，避免 NodeSource apt 在 Zeabur 构建失败
 - 不要把 Token 提交到 Git
