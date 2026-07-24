@@ -984,7 +984,7 @@ def api_mcp_matters_create():
                 "tool": "self.schedule_reminder",
                 "delay_seconds": matter.get("delay_seconds"),
                 "message": wake_text,
-                "hint": "若设备已烧录记忆港湾提醒固件，请同时调用 self.schedule_reminder，到点将 WakeWordInvoke → SendWakeWordDetected。",
+                "hint": "请立刻调用设备 self.schedule_reminder，message 必须用返回的短 wake_text（勿加长句）。",
             }
             if matter.get("delay_seconds")
             else None,

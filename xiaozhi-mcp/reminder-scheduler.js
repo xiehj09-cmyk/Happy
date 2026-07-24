@@ -39,8 +39,7 @@ function scheduleReminder(opts) {
   const handle = setTimeout(async () => {
     timers.delete(String(matterId));
     const wakeText =
-      opts.wakeText ||
-      `到点提醒：请温柔提醒用户「${opts.body || "一件事"}」。`;
+      opts.wakeText || `提醒${(opts.body || "一事").slice(0, 6)}`;
     log(`FIRED #${matterId} · wakeText=${wakeText.slice(0, 80)}`);
     try {
       if (typeof opts.apiRequest === "function") {

@@ -366,9 +366,16 @@ def mark_matter_reminded(
 
 
 def wake_prompt_for_matter(matter: dict[str, Any]) -> str:
-    """生成传给 WakeWordInvoke / SendWakeWordDetected 的唤醒文本。"""
-    body = (matter.get("body") or "一件事").strip()
-    return f"到点提醒：请温柔提醒用户「{body}」。"
+    """
+    生成 SendWakeWordDetected 用的短唤醒词。
+    官方限制：detect 只能传简短文本（类似唤醒词），不能传长提示。
+    """
+    body = (matter.get("body") or "一事").strip()
+    body = body.replace("「", "").replace("」", "").replace('"', "").replace("'", "")
+    # 最多 6 个汉字/字符，整体控制在极短事件词
+    if len(body) > 6:
+        body = body[:6]
+    return f"提醒{body}"
 
 
 def speak_matters_summary(items: list[dict[str, Any]], *, keyword: str = "") -> str:

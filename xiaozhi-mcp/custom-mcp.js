@@ -218,9 +218,9 @@ module.exports = {
     /** 1. 代办写入 → 网站代办清单 + 到点提醒 */
     server.tool(
       "voice_note_write",
-      "把代办写入记忆港湾，并可设置到点提醒。用于「帮我记一下，30秒后吃药」「明天下午三点提醒我买药」。"
-        + "若带有 delay_seconds 或相对时间（如 30秒后），请同时调用设备工具 self.schedule_reminder"
-        + "（delay_seconds + message=返回的 wake_text），设备将走 WakeWordInvoke → SendWakeWordDetected 完整唤醒链路播报提醒。",
+      "把代办写入记忆港湾，并可设置到点提醒。用于「帮我记一下，30秒后吃药」。"
+        + "若带 delay_seconds，请立刻再调用设备 self.schedule_reminder："
+        + "delay_seconds 相同，message 必须原样使用返回的短 wake_text（例如「提醒喝水」），禁止加长句或指令。",
       {
         text: z.string().min(1).describe("要记录的代办内容，如：吃药"),
         due_at: z
@@ -266,9 +266,8 @@ module.exports = {
           let msg = `已记下：${body}\n已同步到网站代办（#${m.id || "?"}${dueLabel}）。`;
           if (delaySec && wakeText) {
             msg +=
-              `\n请立刻再调用设备工具 self.schedule_reminder：` +
-              `delay_seconds=${delaySec}，message「${wakeText}」。` +
-              `到点设备会 WakeWordInvoke → SendWakeWordDetected 唤醒提醒。`;
+              `\n请立刻调用 self.schedule_reminder(delay_seconds=${delaySec}, message="${wakeText}")。` +
+              `message 必须是短词「${wakeText}」，不要改写成长句。`;
           }
           return okText(msg);
         } catch (e) {
@@ -310,8 +309,8 @@ module.exports = {
           }
           return okText(
             `已安排 ${delay_seconds} 秒后提醒「${text}」（代办 #${m.id}）。\n` +
-              `请同时调用 self.schedule_reminder(delay_seconds=${delay_seconds}, message="${wakeText}")，` +
-              `设备将走 WakeWordInvoke → SendWakeWordDetected。`
+              `请立刻调用 self.schedule_reminder(delay_seconds=${delay_seconds}, message="${wakeText}")。` +
+              `message 必须短词，禁止改写。`
           );
         } catch (e) {
           return errText(e);
