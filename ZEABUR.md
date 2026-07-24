@@ -34,8 +34,11 @@ XIAOZHI_MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=你的最新接入点
 日志里应出现：`成功连接到WebSocket服务器` / `MCP服务器启动成功`。
 
 说明：
-- `WEBSITE_BASE=http://127.0.0.1:8080` 即可（MCP 与官网同容器，走本机环回）
+- `WEBSITE_BASE` 由入口脚本自动设为 `http://127.0.0.1:$PORT`，Variables 里可不写
+- 构建使用「从官方 `node` 镜像拷贝」方式安装 Node，避免 NodeSource apt 在 Zeabur 构建失败
 - 不要把 Token 提交到 Git
+
+若构建仍失败：请把日志里带 `ERROR` / `failed` 的完整段落贴出（你上次贴到的只是 pip 成功，真正报错通常在后面的 `npm install` 或启动阶段）。
 
 ---
 
