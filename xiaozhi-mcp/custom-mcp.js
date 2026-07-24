@@ -208,24 +208,33 @@ module.exports = {
       }
     );
 
-    /** 1. 语音录入事项 → txt + 同步网站 */
+    /** 1. 代办写入 → 网站代办清单 */
     server.tool(
       "voice_note_write",
-      "把语音转写后的事项写入本地 txt，并同步到记忆港湾网站「语音事项」。用于「帮我记一下…」。",
+      "把代办事项写入记忆港湾「代办清单」。用于「帮我记一下今天下午三点吃药」。可带提醒时间 due_at。",
       {
-        text: z.string().min(1).describe("要记录的事项内容"),
+        text: z.string().min(1).describe("要记录的代办内容，如：下午三点吃药"),
+        due_at: z
+          .string()
+          .optional()
+          .describe("可选提醒时间，如 15:00、今天下午3点、2026-07-24 15:00"),
       },
-      async ({ text }) => {
+      async ({ text, due_at }) => {
         const body = String(text || "").trim();
         if (!body) return errText(new Error("没有听到可记录的内容"));
         ensureNotesFile();
-        const line = `${nowStamp()} | ${body.replace(/\s+/g, " ")}\n`;
+        const line = `${nowStamp()} | ${body.replace(/\s+/g, " ")}${due_at ? " @ " + due_at : ""}\n`;
         fs.appendFileSync(NOTES_FILE, line, "utf8");
         let syncMsg = "";
         try {
-          const data = await apiRequest("POST", "/api/mcp/matters", { text: body });
-          const id = data.matter && data.matter.id;
-          syncMsg = id ? `已同步到网站（事项 #${id}）。` : "已同步到网站。";
+          const payload = { text: body };
+          if (due_at) payload.due_at = String(due_at).trim();
+          const data = await apiRequest("POST", "/api/mcp/matters", payload);
+          const m = data.matter || {};
+          const dueLabel = m.due_at_label ? `，提醒 ${m.due_at_label}` : "";
+          syncMsg = m.id
+            ? `已同步到网站代办清单（#${m.id}${dueLabel}）。`
+            : "已同步到网站代办清单。";
         } catch (e) {
           syncMsg = "本地已保存，但同步网站失败：" + (e.message || e) + "。";
         }
@@ -236,34 +245,42 @@ module.exports = {
 
     server.tool(
       "voice_note_query",
-      "查询语音事项：优先查网站，失败则查本地 txt。可按关键词搜索。",
+      "查询老人代办清单：优先查网站。用于「我有哪些事要做」「下午有什么安排」。",
       {
         keyword: z.string().optional().describe("可选关键词"),
         limit: z.number().int().min(1).max(50).optional().describe("最多条数，默认 10"),
+        status: z
+          .enum(["open", "done", "all"])
+          .optional()
+          .describe("open=待完成（默认），done=已完成，all=全部"),
       },
-      async ({ keyword, limit }) => {
+      async ({ keyword, limit, status }) => {
         const max = limit || 10;
         const key = (keyword || "").trim();
+        const st = status || "open";
         try {
           const q =
-            "/api/mcp/matters?status=all&limit=" +
+            "/api/mcp/matters?status=" +
+            encodeURIComponent(st) +
+            "&limit=" +
             max +
             (key ? "&keyword=" + encodeURIComponent(key) : "");
           const data = await apiRequest("GET", q);
+          if (data.speak) return okText(data.speak);
           const items = data.matters || [];
           if (!items.length) {
             return okText(
               key
-                ? `网站上没有找到包含「${key}」的事项。`
-                : "网站事项还是空的。可以说「帮我记一下……」。"
+                ? `网站上没有找到包含「${key}」的代办。`
+                : "代办清单还是空的。可以说「帮我记一下……」。"
             );
           }
-          const lines = items.map(
-            (m, i) =>
-              `${i + 1}. [#${m.id}] ${m.body}（${m.status_label || m.status}）· ${m.created_at || ""}`
-          );
+          const lines = items.map((m, i) => {
+            const due = m.due_at_label ? ` · ${m.due_at_label}` : "";
+            return `${i + 1}. [#${m.id}] ${m.body}（${m.status_label || m.status}${due}）`;
+          });
           return okText(
-            (key ? `网站找到 ${items.length} 条与「${key}」相关：` : `网站最近 ${items.length} 条事项：`) +
+            (key ? `找到 ${items.length} 条与「${key}」相关：` : `代办共 ${items.length} 条：`) +
               "\n\n" +
               lines.join("\n")
           );
@@ -272,7 +289,7 @@ module.exports = {
           let matched = lines;
           if (key) matched = lines.filter((l) => softMatch(l, key));
           if (!matched.length) {
-            return okText("暂时连不上网站，本地也没有匹配事项。");
+            return okText("暂时连不上网站，本地也没有匹配代办。");
           }
           const slice = matched.slice(-max);
           return okText(
@@ -298,13 +315,13 @@ module.exports = {
       }
     );
 
-    /** 3. 完成事项 → 网站状态 */
+    /** 3. 完成代办 → 网站状态 */
     server.tool(
       "voice_note_complete",
-      "把语音事项标记为已完成，并同步修改网站状态。用于「这件事做完了」「勾掉买药那条」。",
+      "把代办标记为已完成，并同步网站。用于「吃药这件事做完了」「勾掉买药那条」。",
       {
-        keyword: z.string().optional().describe("事项关键词或原文片段"),
-        matter_id: z.number().int().optional().describe("网站事项 id"),
+        keyword: z.string().optional().describe("代办关键词或原文片段"),
+        matter_id: z.number().int().optional().describe("网站代办 id"),
       },
       async ({ keyword, matter_id }) => {
         try {
@@ -314,7 +331,7 @@ module.exports = {
           });
           const m = data.matter || {};
           return okText(
-            `好的，已在网站把事项标为完成：${m.body || keyword || "#" + m.id}`
+            `好的，已在网站把代办标为完成：${m.body || keyword || "#" + m.id}`
           );
         } catch (e) {
           return errText(e);

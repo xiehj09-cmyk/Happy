@@ -1,0 +1,82 @@
+/* 老人代办清单 */
+
+.todo-create-form {
+  display: grid;
+  gap: 1rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+@media (min-width: 720px) {
+  .todo-create-form {
+    grid-template-columns: 1fr minmax(12rem, 16rem) auto;
+    align-items: end;
+  }
+}
+
+.todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.todo-card {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  background: rgba(15, 118, 110, 0.04);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+}
+
+.todo-card.is-done {
+  opacity: 0.78;
+  background: rgba(22, 101, 52, 0.05);
+  border-color: rgba(22, 101, 52, 0.12);
+}
+
+.todo-card.is-done strong {
+  text-decoration: line-through;
+  color: #3d5560;
+}
+
+.todo-card-main {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.todo-card-main strong {
+  display: block;
+  font-size: 1.15rem;
+  color: #1a2f36;
+  line-height: 1.35;
+}
+
+.todo-card-main p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: #3d5560;
+}
+
+.todo-card-main time {
+  font-weight: 700;
+  color: #0b5f59;
+}
+
+.todo-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.todo-card-actions .btn-primary,
+.todo-card-actions .btn-ghost {
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  font-size: 1rem;
+}

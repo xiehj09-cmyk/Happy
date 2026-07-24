@@ -86,8 +86,11 @@ from mcp_user_service import (
 from voice_matter_service import (
     add_matter,
     complete_matter,
+    delete_matter,
     ensure_voice_matter_tables,
     list_matters,
+    reopen_matter,
+    speak_matters_summary,
 )
 from medication_service import (
     PLACE_OPTIONS,
@@ -595,6 +598,13 @@ def dashboard():
                 "url": url_for("tasks_page"),
             },
             {
+                "title": "代办清单",
+                "desc": "查看与勾选老人的简单代办（吃药提醒等），与小智语音同步。",
+                "icon": "brain",
+                "status": "可用",
+                "url": url_for("todos_page"),
+            },
+            {
                 "title": "用药管理",
                 "desc": "维护用药清单与服药时间，远程查看依从记录。",
                 "icon": "pill",
@@ -645,6 +655,13 @@ def dashboard():
             "icon": "brain",
             "status": "可用",
             "url": url_for("tasks_page"),
+        },
+        {
+            "title": "代办清单",
+            "desc": "记下今天下午三点吃药等简单事项；可在网站勾选，也可让小智语音查询。",
+            "icon": "brain",
+            "status": "可用",
+            "url": url_for("todos_page"),
         },
         {
             "title": "CST 终端",
@@ -917,17 +934,18 @@ def api_speech_evaluate():
 @app.route("/api/mcp/matters", methods=["POST"])
 @mcp_token_required
 def api_mcp_matters_create():
-    """语音录入事项 → 同步写入网站。"""
+    """代办录入 → 同步写入网站（可带提醒时间）。"""
     db = get_db()
     elder_id = resolve_mcp_elder_id(db)
     if not elder_id:
         return jsonify({"ok": False, "error": "未找到老人账号，请配置 MCP_ELDER_USER_ID"}), 400
     data = request.get_json(silent=True) or {}
     text = str(data.get("text") or data.get("body") or "").strip()
+    due_at = str(data.get("due_at") or data.get("remind_at") or data.get("time") or "").strip()
     if not text:
         return jsonify({"ok": False, "error": "事项内容不能为空"}), 400
     try:
-        matter = add_matter(db, elder_id, text, source="xiaozhi")
+        matter = add_matter(db, elder_id, text, source="xiaozhi", due_at=due_at or None)
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
     return jsonify({"ok": True, "matter": matter})
@@ -946,7 +964,14 @@ def api_mcp_matters_list():
     keyword = request.args.get("keyword") or ""
     limit = request.args.get("limit", type=int) or 20
     items = list_matters(db, elder_id, status=status, keyword=keyword or None, limit=limit)
-    return jsonify({"ok": True, "matters": items, "count": len(items)})
+    return jsonify(
+        {
+            "ok": True,
+            "matters": items,
+            "count": len(items),
+            "speak": speak_matters_summary(items, keyword=keyword),
+        }
+    )
 
 
 @app.route("/api/mcp/matters/complete", methods=["POST"])
@@ -1558,6 +1583,89 @@ def _api_care_context():
         return None, None, (jsonify({"ok": False, "error": "未找到照护对象"}), 400)
     role = session.get("role", ROLE_ELDER)
     return elder_id, role, None
+
+
+@app.route("/todos")
+@login_required
+def todos_page():
+    """老人代办清单（简单事项；与小智 MCP 共用数据）。"""
+    elder_id = effective_care_user_id()
+    role = session.get("role", ROLE_ELDER)
+    is_family = role == ROLE_FAMILY
+    db = get_db()
+    open_items = list_matters(db, elder_id, status="open", limit=50)
+    done_items = list_matters(db, elder_id, status="done", limit=20)
+    return render_dashboard(
+        "todos.html",
+        "todos",
+        is_family=is_family,
+        care_label=session.get("elder_username") or session.get("username") or "",
+        open_items=open_items,
+        done_items=done_items,
+        open_count=len(open_items),
+        done_count=len(done_items),
+    )
+
+
+@app.route("/todos/create", methods=["POST"])
+@login_required
+def todos_create():
+    elder_id = effective_care_user_id()
+    role = session.get("role", ROLE_ELDER)
+    if role not in {ROLE_FAMILY, ROLE_ELDER}:
+        flash("无权创建代办。", "warning")
+        return redirect(url_for("todos_page"))
+    body = (request.form.get("body") or request.form.get("text") or "").strip()
+    due_raw = (request.form.get("due_at") or "").strip()
+    source = "family" if role == ROLE_FAMILY else "web"
+    try:
+        add_matter(
+            get_db(),
+            elder_id,
+            body,
+            source=source,
+            recorded_by=session.get("user_id"),
+            due_at=due_raw or None,
+        )
+        flash("已加入代办清单。", "success")
+    except ValueError as exc:
+        flash(str(exc), "danger")
+    return redirect(url_for("todos_page"))
+
+
+@app.route("/api/todos/<int:matter_id>/complete", methods=["POST"])
+@login_required
+def api_todos_complete(matter_id: int):
+    elder_id, _role, err = _api_care_context()
+    if err:
+        return err
+    matter = complete_matter(get_db(), elder_id, matter_id=matter_id)
+    if not matter:
+        return jsonify({"ok": False, "error": "未找到该代办"}), 404
+    return jsonify({"ok": True, "matter": matter})
+
+
+@app.route("/api/todos/<int:matter_id>/reopen", methods=["POST"])
+@login_required
+def api_todos_reopen(matter_id: int):
+    elder_id, _role, err = _api_care_context()
+    if err:
+        return err
+    matter = reopen_matter(get_db(), elder_id, matter_id)
+    if not matter:
+        return jsonify({"ok": False, "error": "未找到该代办"}), 404
+    return jsonify({"ok": True, "matter": matter})
+
+
+@app.route("/api/todos/<int:matter_id>/delete", methods=["POST"])
+@login_required
+def api_todos_delete(matter_id: int):
+    elder_id, _role, err = _api_care_context()
+    if err:
+        return err
+    if not delete_matter(get_db(), elder_id, matter_id):
+        return jsonify({"ok": False, "error": "未找到该代办"}), 404
+    return jsonify({"ok": True})
 
 
 @app.route("/tasks")

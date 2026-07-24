@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}代办清单 · 记忆港湾{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/todos.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+  {% include "partials/dashboard_header.html" %}
+
+  <main class="home-content page-content" id="todos-root"
+        data-role="{{ 'family' if is_family else 'elder' }}">
+
+    <section class="page-hero compact">
+      <div>
+        <p class="welcome-kicker">代办清单 · {{ '家属查看' if is_family else '今天要记得的事' }}</p>
+        <h1>{% if is_family %}「{{ care_label }}」的代办{% else %}一件一件做{% endif %}</h1>
+        <p class="welcome-desc">
+          {% if is_family %}
+          记下吃药、出门等简单事项；老人端可勾选完成，也可让小智语音查询与添加。
+          {% else %}
+          可以自己添加，也可以让小智帮您记。做完了点一下「做好了」。
+          {% endif %}
+        </p>
+      </div>
+      <aside class="hero-stats">
+        <article class="stat-card">
+          <span class="stat-label">待完成</span>
+          <strong class="stat-value">{{ open_count }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">已完成</span>
+          <strong class="stat-value stat-ok">{{ done_count }}</strong>
+        </article>
+      </aside>
+    </section>
+
+    <section class="panel" id="create-todo">
+      <header class="panel-header compact">
+        <div>
+          <h2>添加代办</h2>
+          <p>例如：今天下午 3 点吃药、出门带钥匙。</p>
+        </div>
+      </header>
+      <form method="post" action="{{ url_for('todos_create') }}" class="todo-create-form">
+        <label class="field">
+          <span>要做的事</span>
+          <input type="text" name="body" required maxlength="200"
+                 placeholder="今天下午三点吃药" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>提醒时间（可选）</span>
+          <input type="datetime-local" name="due_at" />
+        </label>
+        <button type="submit" class="btn-primary btn-inline">加入清单</button>
+      </form>
+    </section>
+
+    <section class="panel" id="open-todos">
+      <header class="panel-header compact">
+        <div>
+          <h2>待完成</h2>
+          <p>做完后点「做好了」，小智那边也会同步看到。</p>
+        </div>
+      </header>
+      {% if open_items %}
+      <ul class="todo-list">
+        {% for m in open_items %}
+        <li class="todo-card" data-matter-id="{{ m.id }}">
+          <div class="todo-card-main">
+            <strong>{{ m.body }}</strong>
+            <p>
+              {% if m.due_at_label %}<time>{{ m.due_at_label }}</time> · {% endif %}
+              {{ m.source_label }} · {{ m.created_at }}
+            </p>
+          </div>
+          <div class="todo-card-actions">
+            <button type="button" class="btn-primary btn-inline" data-todo-complete>{{ '标记完成' if is_family else '做好了' }}</button>
+            <button type="button" class="btn-ghost" data-todo-delete>删除</button>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="stat-note">还没有待办。上面添加一条，或对小智说「帮我记一下……」。</p>
+      {% endif %}
+    </section>
+
+    {% if done_items %}
+    <section class="panel" id="done-todos">
+      <header class="panel-header compact">
+        <div>
+          <h2>最近完成</h2>
+          <p>点错了可以「重新打开」。</p>
+        </div>
+      </header>
+      <ul class="todo-list">
+        {% for m in done_items %}
+        <li class="todo-card is-done" data-matter-id="{{ m.id }}">
+          <div class="todo-card-main">
+            <strong>{{ m.body }}</strong>
+            <p>
+              完成于 {{ m.completed_at or m.created_at }}
+              {% if m.due_at_label %} · 原定 {{ m.due_at_label }}{% endif %}
+            </p>
+          </div>
+          <div class="todo-card-actions">
+            <button type="button" class="btn-ghost" data-todo-reopen>重新打开</button>
+            <button type="button" class="btn-ghost" data-todo-delete>删除</button>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/todos.js') }}"></script>
+{% endblock %}

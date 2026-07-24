@@ -28,6 +28,7 @@
         </div>
         <div class="welcome-actions">
           <a href="{{ url_for('tasks_page') }}" class="btn-primary btn-inline">管理任务</a>
+          <a href="{{ url_for('todos_page') }}" class="btn-outline">代办清单</a>
           <a href="{{ url_for('medication') }}" class="btn-outline">用药管理</a>
         </div>
       </div>
@@ -200,20 +201,23 @@
       <section class="panel voice-matters-panel" data-speak-card>
         <header class="panel-header compact speak-toolbar">
           <div>
-            <h2>语音事项</h2>
-            <p>小智帮忙记下的事，会同步到这里；完成后状态会更新。</p>
+            <h2>代办清单</h2>
+            <p>网站与小智共用；可点「全部代办」管理，也可让小智语音查询。</p>
           </div>
-          <button type="button" class="speak-btn">🔊 大声朗读</button>
+          <div class="speak-toolbar-actions">
+            <a href="{{ url_for('todos_page') }}" class="btn-outline btn-inline">全部代办</a>
+            <button type="button" class="speak-btn">🔊 大声朗读</button>
+          </div>
         </header>
         <ul class="task-list voice-matters-list" data-speak-text>
           {% if voice_matters %}
             {% for m in voice_matters %}
             <li class="task-item {% if m.status == 'done' %}is-done{% endif %}">
-              <time>{{ m.status_label }}</time>
+              <time>{{ m.status_label }}{% if m.due_at_label %} · {{ m.due_at_label }}{% endif %}</time>
               <div>
                 <strong>{{ m.body }}</strong>
                 <p>
-                  {{ m.created_at }}
+                  {{ m.source_label or '记录' }} · {{ m.created_at }}
                   {% if m.completed_at %} · 完成于 {{ m.completed_at }}{% endif %}
                 </p>
               </div>
@@ -222,8 +226,8 @@
           {% else %}
             <li class="task-item">
               <div>
-                <strong>还没有语音事项</strong>
-                <p>对小智说「帮我记一下……」，就会出现在这里。</p>
+                <strong>还没有代办</strong>
+                <p>到「代办清单」添加，或对小智说「帮我记一下今天下午三点吃药」。</p>
               </div>
             </li>
           {% endif %}
